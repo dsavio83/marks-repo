@@ -24,4 +24,15 @@ const subjectSchema = new mongoose.Schema({
   }
 });
 
+// Transform _id to id for frontend compatibility
+subjectSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
 module.exports = mongoose.model('Subject', subjectSchema);

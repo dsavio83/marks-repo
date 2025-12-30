@@ -25,7 +25,7 @@ const gradeSchemeSchema = new mongoose.Schema({
     type: [String],
     required: [true, 'Applicable classes are required'],
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return v && v.length > 0;
       },
       message: 'At least one applicable class is required'
@@ -35,7 +35,7 @@ const gradeSchemeSchema = new mongoose.Schema({
     type: [gradeBoundarySchema],
     required: [true, 'Grade boundaries are required'],
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return v && v.length > 0;
       },
       message: 'At least one grade boundary is required'
@@ -48,6 +48,17 @@ const gradeSchemeSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  }
+});
+
+// Transform _id to id for frontend compatibility
+gradeSchemeSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
   }
 });
 

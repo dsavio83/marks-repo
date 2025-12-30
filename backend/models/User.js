@@ -21,10 +21,19 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: function() {
+    required: function () {
       return this.role !== 'STUDENT';
     },
-    minlength: [6, 'Password must be at least 6 characters long']
+    validate: {
+      validator: function (v) {
+        // Skip validation if password is not being set or is empty
+        if (!v || v === '') return true;
+        // Skip if it looks like a bcrypt hash (starts with $2)
+        if (v.startsWith('$2')) return true;
+        return v.length >= 2 && v.length <= 16;
+      },
+      message: 'Password must be between 2 and 16 characters long'
+    }
   },
   // Student & Teacher metadata
   admissionNo: {
@@ -33,10 +42,12 @@ const userSchema = new mongoose.Schema({
   },
   mobile: {
     type: String,
-    required: [true, 'Mobile number is required'],
+    required: false,
     trim: true,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
+        // Only validate if value is provided
+        if (!v || v === '') return true;
         return /^\d{10}$/.test(v);
       },
       message: 'Mobile number must be 10 digits'
@@ -48,7 +59,9 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
+        // Only validate if value is provided
+        if (!v || v === '') return true;
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
       },
       message: 'Please enter a valid email address'
@@ -92,7 +105,7 @@ const userSchema = new mongoose.Schema({
   classId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ClassRoom',
-    required: function() {
+    required: function () {
       return this.role === 'STUDENT';
     }
   },
@@ -107,21 +120,30 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password') || !this.password) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+userSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) {
+    return;
   }
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// Transform _id to id for frontend compatibility
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    delete ret.password; // Don't send password to frontend
+    return ret;
+  }
+});
 
 module.exports = mongoose.model('User', userSchema);

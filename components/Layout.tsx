@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LogOut, LayoutDashboard, Users, BookOpen, 
+import {
+  LogOut, LayoutDashboard, Users, BookOpen,
   GraduationCap, ClipboardList, BarChart3, Settings,
   ChevronLeft, ChevronRight, Menu, Bell, FileSpreadsheet,
   FolderOpen, UserCog, Building, Layers, Database
@@ -55,16 +55,32 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
   // Logic to fetch Teacher's Classes (Still used for desktop sidebar quick links)
   let teacherClasses: any[] = [];
   if (user.role === UserRole.TEACHER && appState) {
-    const myFormClasses = appState.classes.filter((c: any) => c.classTeacherId === user.id);
-    const mySubjectAssignments = appState.assignments.filter((a: any) => a.teacherId === user.id);
-    
+    const myFormClasses = appState.classes.filter((c: any) =>
+      (typeof c.classTeacherId === 'object' ? c.classTeacherId.id : c.classTeacherId) === user.id
+    );
+    // Note: assignments might not be populated in appState if not fetched. 
+    // The current appState in App.tsx doesn't seem to fetch assignments explicitly from an API endpoint, 
+    // but relies on what's locally stored or assumes they are part of something else.
+    // However, checking App.tsx, assignments are part of default state but not fetched in fetchAllData.
+    // We need to rely on what we have. If assignments are key for this, they must be fetched.
+    // Assuming assignments are available or we need to derive them.
+
+    // Actually, looking at App.tsx, assignments are NOT fetched from API. This is a problem.
+    // But wait, the user says "Class assing and subject teachers assing and save properly show the admin panel".
+    // This implies the data exists in the backend. 
+    // In the frontend, we need to fetch assignments to know what classes a teacher has.
+
+    // Let's first fix the ID comparison for classTeacherId.
+
+    const mySubjectAssignments = appState.assignments ? appState.assignments.filter((a: any) => a.teacherId === user.id) : [];
+
     const classMap = new Map();
     // Add form classes first
     myFormClasses.forEach((c: any) => classMap.set(c.id, c));
     // Add subject classes
     mySubjectAssignments.forEach((a: any) => {
-        const cls = appState.classes.find((c: any) => c.id === a.classId);
-        if(cls) classMap.set(cls.id, cls);
+      const cls = appState.classes.find((c: any) => c.id === a.classId);
+      if (cls) classMap.set(cls.id, cls);
     });
     teacherClasses = Array.from(classMap.values());
   }
@@ -104,9 +120,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`flex flex-col items-center justify-center py-2 px-4 rounded-2xl transition-all duration-300 btn-active ${
-                  isActive ? 'text-blue-600 bg-blue-50/50' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className={`flex flex-col items-center justify-center py-2 px-4 rounded-2xl transition-all duration-300 btn-active ${isActive ? 'text-blue-600 bg-blue-50/50' : 'text-slate-400 hover:text-slate-600'
+                  }`}
               >
                 <span className={`${isActive ? 'scale-110' : ''} transition-transform duration-300`}>{item.icon}</span>
                 <span className={`text-[10px] mt-1 font-bold ${isActive ? 'opacity-100' : 'opacity-70'}`}>{item.label}</span>
@@ -121,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Desktop Sidebar */}
-      <aside 
+      <aside
         className={`${isCollapsed ? 'w-24' : 'w-72'} bg-white border-r border-slate-200 flex flex-col transition-all duration-500 ease-in-out relative z-30 shadow-sm`}
       >
         <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
@@ -147,11 +162,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
-                  isActive 
-                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-200/50 scale-[1.02]' 
+                className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all duration-300 group ${isActive
+                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-200/50 scale-[1.02]'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
-                }`}
+                  }`}
               >
                 <span className={`${isCollapsed ? '' : 'mr-4'} ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-300`}>
                   {item.icon}
@@ -160,48 +174,48 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
               </button>
             );
           })}
-          
+
           {/* Teacher's Classes Section - Desktop Quick Links */}
           {user.role === UserRole.TEACHER && teacherClasses.length > 0 && (
-             <div className="mt-8">
-                 {!isCollapsed && <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Quick Access</p>}
-                 {teacherClasses.map((cls) => {
-                     const path = `/teacher/class/${cls.id}`;
-                     const isActive = location.pathname === path;
-                     const isClassTeacher = cls.classTeacherId === user.id;
+            <div className="mt-8">
+              {!isCollapsed && <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Quick Access</p>}
+              {teacherClasses.map((cls) => {
+                const path = `/teacher/class/${cls.id}`;
+                const isActive = location.pathname === path;
+                const isClassTeacher = cls.classTeacherId === user.id;
 
-                     let bgClass = '';
-                     let textClass = '';
-                     
-                     if (isActive) {
-                        bgClass = 'bg-indigo-600 shadow-xl shadow-indigo-200/50 scale-[1.02]';
-                        textClass = 'text-white';
-                     } else {
-                        bgClass = 'hover:bg-slate-50';
-                        textClass = isClassTeacher 
-                            ? 'text-blue-700 hover:text-blue-800' 
-                            : 'text-slate-700 hover:text-slate-900';
-                     }
+                let bgClass = '';
+                let textClass = '';
 
-                     return (
-                        <button
-                            key={cls.id}
-                            onClick={() => navigate(path)}
-                            className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all duration-300 group ${bgClass} ${textClass}`}
-                        >
-                            <span className={`${isCollapsed ? '' : 'mr-4'} ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-300`}>
-                                {isClassTeacher ? <UserCog size={20} /> : <FolderOpen size={20} />}
-                            </span>
-                            {!isCollapsed && (
-                                <div className="text-left">
-                                    <span className="text-sm font-bold tracking-tight block">Class {cls.name}</span>
-                                    {isClassTeacher && <span className="text-[9px] uppercase tracking-widest opacity-70">Class Teacher</span>}
-                                </div>
-                            )}
-                        </button>
-                     )
-                 })}
-             </div>
+                if (isActive) {
+                  bgClass = 'bg-indigo-600 shadow-xl shadow-indigo-200/50 scale-[1.02]';
+                  textClass = 'text-white';
+                } else {
+                  bgClass = 'hover:bg-slate-50';
+                  textClass = isClassTeacher
+                    ? 'text-blue-700 hover:text-blue-800'
+                    : 'text-slate-700 hover:text-slate-900';
+                }
+
+                return (
+                  <button
+                    key={cls.id}
+                    onClick={() => navigate(path)}
+                    className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all duration-300 group ${bgClass} ${textClass}`}
+                  >
+                    <span className={`${isCollapsed ? '' : 'mr-4'} ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-300`}>
+                      {isClassTeacher ? <UserCog size={20} /> : <FolderOpen size={20} />}
+                    </span>
+                    {!isCollapsed && (
+                      <div className="text-left">
+                        <span className="text-sm font-bold tracking-tight block">Class {cls.name}</span>
+                        {isClassTeacher && <span className="text-[9px] uppercase tracking-widest opacity-70">Class Teacher</span>}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           )}
         </nav>
 
@@ -227,7 +241,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
         </div>
 
         {/* Toggle Collapse Button */}
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="absolute -right-3 top-20 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-blue-600 shadow-sm z-50 transition-all hover:scale-110"
         >

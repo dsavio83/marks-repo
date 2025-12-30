@@ -19,7 +19,7 @@ const connectDB = async () => {
     const options = {
       maxPoolSize: 10, // Limit connection pool size for serverless
       minPoolSize: 2,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of 30s
       socketTimeoutMS: 45000,
       family: 4, // Use IPv4, skip trying IPv6
       retryWrites: true,

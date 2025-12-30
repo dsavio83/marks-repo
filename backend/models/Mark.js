@@ -20,7 +20,7 @@ const markSchema = new mongoose.Schema({
     type: String,
     required: [true, 'TE mark is required'],
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return /^\d+(\.\d{1,2})?$/.test(v);
       },
       message: 'TE mark must be a valid number'
@@ -30,7 +30,7 @@ const markSchema = new mongoose.Schema({
     type: String,
     required: [true, 'CE mark is required'],
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return /^\d+(\.\d{1,2})?$/.test(v);
       },
       message: 'CE mark must be a valid number'
@@ -48,5 +48,16 @@ const markSchema = new mongoose.Schema({
 
 // Compound index to ensure unique marks per student per subject per exam
 markSchema.index({ studentId: 1, subjectId: 1, examId: 1 }, { unique: true });
+
+// Transform _id to id for frontend compatibility
+markSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
 
 module.exports = mongoose.model('Mark', markSchema);

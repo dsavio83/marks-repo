@@ -37,20 +37,18 @@ const registerUser = async (req, res) => {
 
     await user.save();
 
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: user._id,
-        username: user.username,
-        name: user.name,
-        role: user.role,
-        mobile: user.mobile,
-        email: user.email
-      }
-    });
+    res.status(201).json(user);
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({
+      message: error.message || 'Server error during registration',
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 

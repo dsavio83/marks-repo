@@ -42,25 +42,26 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update fields
-    user.username = username || user.username;
-    user.name = name || user.name;
-    user.role = role || user.role;
-    user.admissionNo = admissionNo || user.admissionNo;
-    user.mobile = mobile || user.mobile;
-    user.email = email || user.email;
-    user.gender = gender || user.gender;
-    user.dob = dob || user.dob;
-    user.category = category || user.category;
-    user.caste = caste || user.caste;
-    user.religion = religion || user.religion;
-    user.fatherName = fatherName || user.fatherName;
-    user.motherName = motherName || user.motherName;
-    user.address = address || user.address;
-    user.transportMode = transportMode || user.transportMode;
-    user.classId = classId || user.classId;
+    // Update fields only if they are provided and not empty
+    if (username) user.username = username;
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (admissionNo !== undefined) user.admissionNo = admissionNo;
+    if (mobile) user.mobile = mobile;
+    if (email !== undefined) user.email = email;
+    if (gender) user.gender = gender;
+    if (dob) user.dob = dob;
+    if (category) user.category = category;
+    if (caste !== undefined) user.caste = caste;
+    if (religion !== undefined) user.religion = religion;
+    if (fatherName !== undefined) user.fatherName = fatherName;
+    if (motherName !== undefined) user.motherName = motherName;
+    if (address !== undefined) user.address = address;
+    if (transportMode) user.transportMode = transportMode;
+    if (classId !== undefined) user.classId = classId;
 
-    if (password && role !== 'STUDENT') {
+    // Only update password if provided, not empty, and user is not a student
+    if (password && password.trim() !== '' && user.role !== 'STUDENT') {
       user.password = password;
     }
 
@@ -68,20 +69,19 @@ const updateUser = async (req, res) => {
 
     await user.save();
 
-    res.json({
-      message: 'User updated successfully',
-      user: {
-        id: user._id,
-        username: user.username,
-        name: user.name,
-        role: user.role,
-        mobile: user.mobile,
-        email: user.email
-      }
-    });
+    // Return the updated user (toJSON will convert _id to id)
+    res.json(user);
   } catch (error) {
     console.error('Update user error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({
+      message: error.message || 'Server error',
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 

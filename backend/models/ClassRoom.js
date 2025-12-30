@@ -33,4 +33,15 @@ const classRoomSchema = new mongoose.Schema({
   }
 });
 
+// Transform _id to id for frontend compatibility
+classRoomSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
 module.exports = mongoose.model('ClassRoom', classRoomSchema);

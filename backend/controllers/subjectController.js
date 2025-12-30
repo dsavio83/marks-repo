@@ -49,17 +49,10 @@ const createSubject = async (req, res) => {
 
     await subject.save();
 
-    res.status(201).json({
-      message: 'Subject created successfully',
-      subject: {
-        id: subject._id,
-        name: subject.name,
-        shortCode: subject.shortCode
-      }
-    });
+    res.status(201).json(subject);
   } catch (error) {
     console.error('Create subject error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
@@ -96,17 +89,10 @@ const updateSubject = async (req, res) => {
 
     await subject.save();
 
-    res.json({
-      message: 'Subject updated successfully',
-      subject: {
-        id: subject._id,
-        name: subject.name,
-        shortCode: subject.shortCode
-      }
-    });
+    res.json(subject);
   } catch (error) {
     console.error('Update subject error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 

@@ -103,7 +103,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     setCurrentUser(null);
-    setDataLoaded(false);
+    setDataLoaded(true); // No need to load data when logged out
   };
 
   if (!dataLoaded || loading) {

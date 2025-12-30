@@ -37,7 +37,7 @@ const examSchema = new mongoose.Schema({
     type: [examSubjectConfigSchema],
     required: [true, 'Subject configurations are required'],
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return v && v.length > 0;
       },
       message: 'At least one subject configuration is required'
@@ -50,6 +50,17 @@ const examSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  }
+});
+
+// Transform _id to id for frontend compatibility
+examSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
   }
 });
 

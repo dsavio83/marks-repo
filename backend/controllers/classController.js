@@ -8,12 +8,7 @@ const SubjectAssignment = require('../models/SubjectAssignment');
 const getAllClasses = async (req, res) => {
   try {
     const classes = await ClassRoom.find()
-      .populate('classTeacherId', 'name username')
-      .populate({
-        path: 'students',
-        model: 'User',
-        match: { role: 'STUDENT' }
-      });
+      .populate('classTeacherId', 'name username');
     res.json(classes);
   } catch (error) {
     console.error('Get classes error:', error);
@@ -27,17 +22,12 @@ const getAllClasses = async (req, res) => {
 const getClassById = async (req, res) => {
   try {
     const classRoom = await ClassRoom.findById(req.params.id)
-      .populate('classTeacherId', 'name username')
-      .populate({
-        path: 'students',
-        model: 'User',
-        match: { role: 'STUDENT' }
-      });
-    
+      .populate('classTeacherId', 'name username');
+
     if (!classRoom) {
       return res.status(404).json({ message: 'Class not found' });
     }
-    
+
     res.json(classRoom);
   } catch (error) {
     console.error('Get class error:', error);
@@ -50,12 +40,14 @@ const getClassById = async (req, res) => {
 // @access  Private (Admin only)
 const createClass = async (req, res) => {
   try {
-    const { name, section, gradeLevel, classTeacherId } = req.body;
+    const { name, section, gradeLevel, classTeacherId, subjects } = req.body;
 
     // Check if class teacher exists and is a teacher
-    const teacher = await User.findById(classTeacherId);
-    if (!teacher || teacher.role !== 'TEACHER') {
-      return res.status(400).json({ message: 'Invalid class teacher' });
+    if (classTeacherId) {
+      const teacher = await User.findById(classTeacherId);
+      if (!teacher || teacher.role !== 'TEACHER') {
+        return res.status(400).json({ message: 'Invalid class teacher' });
+      }
     }
 
     const classRoom = new ClassRoom({
@@ -67,18 +59,31 @@ const createClass = async (req, res) => {
 
     await classRoom.save();
 
-    res.status(201).json({
-      message: 'Class created successfully',
-      class: {
-        id: classRoom._id,
-        name: classRoom.name,
-        section: classRoom.section,
-        gradeLevel: classRoom.gradeLevel
-      }
-    });
+    // Create subject assignments if provided
+    if (subjects && subjects.length > 0) {
+      const assignments = subjects.map(sub => ({
+        classId: classRoom._id,
+        subjectId: sub.subjectId,
+        teacherId: sub.teacherId
+      }));
+      await SubjectAssignment.insertMany(assignments);
+    }
+
+    // Populate the class teacher for the response
+    await classRoom.populate('classTeacherId', 'name username');
+
+    res.status(201).json(classRoom);
   } catch (error) {
     console.error('Create class error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({
+      message: error.message || 'Server error',
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 
@@ -87,7 +92,7 @@ const createClass = async (req, res) => {
 // @access  Private (Admin only)
 const updateClass = async (req, res) => {
   try {
-    const { name, section, gradeLevel, classTeacherId } = req.body;
+    const { name, section, gradeLevel, classTeacherId, subjects } = req.body;
 
     const classRoom = await ClassRoom.findById(req.params.id);
     if (!classRoom) {
@@ -110,18 +115,37 @@ const updateClass = async (req, res) => {
 
     await classRoom.save();
 
-    res.json({
-      message: 'Class updated successfully',
-      class: {
-        id: classRoom._id,
-        name: classRoom.name,
-        section: classRoom.section,
-        gradeLevel: classRoom.gradeLevel
+    // Update subject assignments if provided
+    if (subjects !== undefined) {
+      // Delete existing subject assignments for this class
+      await SubjectAssignment.deleteMany({ classId: req.params.id });
+
+      // Create new subject assignments
+      if (subjects.length > 0) {
+        const assignments = subjects.map(sub => ({
+          classId: classRoom._id,
+          subjectId: sub.subjectId,
+          teacherId: sub.teacherId
+        }));
+        await SubjectAssignment.insertMany(assignments);
       }
-    });
+    }
+
+    // Populate the class teacher for the response
+    await classRoom.populate('classTeacherId', 'name username');
+
+    res.json(classRoom);
   } catch (error) {
     console.error('Update class error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({
+      message: error.message || 'Server error',
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 
@@ -151,7 +175,7 @@ const getClassSubjects = async (req, res) => {
     const subjects = await SubjectAssignment.find({ classId: req.params.id })
       .populate('subjectId', 'name shortCode')
       .populate('teacherId', 'name username');
-    
+
     res.json(subjects);
   } catch (error) {
     console.error('Get class subjects error:', error);
