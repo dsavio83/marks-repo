@@ -42,12 +42,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
       { icon: <LayoutDashboard size={22} />, label: 'Dashboard', path: '/teacher' },
       { icon: <Layers size={22} />, label: 'My Classes', path: '/teacher/classes' },
       { icon: <Users size={22} />, label: 'Students', path: '/teacher/students' },
+      { icon: <ClipboardList size={22} />, label: 'Mark Entry', path: '/teacher/section-marks' },
       { icon: <FileSpreadsheet size={22} />, label: 'Exams', path: '/teacher/exams' },
       { icon: <BarChart3 size={22} />, label: 'Reports', path: '/teacher/reports' },
     ],
     [UserRole.STUDENT]: [
       { icon: <LayoutDashboard size={22} />, label: 'Dashboard', path: '/student' },
       { icon: <BookOpen size={22} />, label: 'Courses', path: '/student/courses' },
+      { icon: <ClipboardList size={22} />, label: 'Submit Marks', path: '/student/submit-marks' },
       { icon: <BarChart3 size={22} />, label: 'Grades', path: '/student/grades' },
     ]
   };
@@ -91,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
     return (
       <div className="flex flex-col h-screen bg-white overflow-hidden safe-top safe-bottom">
         {/* Mobile Header */}
-        <header className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-slate-100 z-40 sticky top-0">
+        <header className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-slate-100 z-40 sticky top-0 print:hidden">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <span className="font-bold text-lg">{user.name.charAt(0)}</span>
@@ -113,7 +115,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-2 py-2 flex justify-around items-center z-50 safe-bottom shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-2 py-2 flex justify-around items-center z-50 safe-bottom shadow-[0_-8px_30px_rgb(0,0,0,0.04)] print:hidden">
           {currentMenu.slice(0, 5).map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -137,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Desktop Sidebar */}
       <aside
-        className={`${isCollapsed ? 'w-24' : 'w-72'} bg-white border-r border-slate-200 flex flex-col transition-all duration-500 ease-in-out relative z-30 shadow-sm`}
+        className={`${isCollapsed ? 'w-24' : 'w-72'} bg-white border-r border-slate-200 flex flex-col transition-all duration-500 ease-in-out relative z-30 shadow-sm print:hidden`}
       >
         <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
@@ -163,8 +165,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={`flex items-center w-full px-4 py-3.5 rounded-2xl transition-all duration-300 group ${isActive
-                    ? 'bg-blue-600 text-white shadow-xl shadow-blue-200/50 scale-[1.02]'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+                  ? 'bg-blue-600 text-white shadow-xl shadow-blue-200/50 scale-[1.02]'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
                   }`}
               >
                 <span className={`${isCollapsed ? '' : 'mr-4'} ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-300`}>
@@ -250,8 +252,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, appState, onLogout }) =
       </aside>
 
       {/* Desktop Main Content */}
-      <main className="flex-1 overflow-y-auto relative bg-slate-50/30">
-        <div className="max-w-6xl mx-auto py-10 px-8 animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
+      <main className="flex-1 overflow-y-auto relative bg-slate-50/30 print:bg-white print:overflow-visible">
+        <div className="max-w-6xl mx-auto py-10 px-8 animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out print:p-0 print:max-w-none">
           {children}
         </div>
       </main>

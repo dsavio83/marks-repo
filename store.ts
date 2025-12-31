@@ -26,10 +26,10 @@ const initialState: AppState = {
   assignments: SEED_ASSIGNMENTS,
   exams: [],
   schoolDetails: {
-      name: 'Smart School',
-      place: 'Chennai',
-      schoolCode: 'SCH001',
-      headMasterName: 'Principal'
+    name: 'Smart School',
+    place: 'Chennai',
+    schoolCode: 'SCH001',
+    headMasterName: 'Principal'
   }
 };
 
@@ -41,6 +41,7 @@ export const getAppState = (): AppState => {
     if (!parsed.assignments) parsed.assignments = SEED_ASSIGNMENTS;
     if (!parsed.exams) parsed.exams = [];
     if (!parsed.attendance) parsed.attendance = [];
+    if (!parsed.gradeSchemes) parsed.gradeSchemes = initialState.gradeSchemes;
     if (!parsed.schoolDetails) parsed.schoolDetails = initialState.schoolDetails;
     return parsed;
   }

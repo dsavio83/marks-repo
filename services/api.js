@@ -60,6 +60,7 @@ export const classAPI = {
   update: (id, data) => api.put(`/classes/${id}`, data),
   delete: (id) => api.delete(`/classes/${id}`),
   getSubjects: (id) => api.get(`/classes/${id}/subjects`),
+  getAllAssignments: () => api.get('/classes/assignments/all'),
 };
 
 // Subject API - Updated for serverless
@@ -90,6 +91,29 @@ export const markAPI = {
   create: (data) => api.post('/marks', data),
   update: (id, data) => api.put(`/marks/${id}`, data),
   delete: (id) => api.delete(`/marks/${id}`),
+  analyze: (id) => api.post(`/marks/${id}/analyze`),
+};
+
+// Attendance API
+export const attendanceAPI = {
+  getAll: () => api.get('/attendance'),
+  upsert: (data) => api.post('/attendance', data),
+  delete: (id) => api.delete(`/attendance/${id}`),
+};
+
+// Grade API
+export const gradeAPI = {
+  getAll: () => api.get('/grades'),
+  getById: (id) => api.get(`/grades/${id}`),
+  create: (data) => api.post('/grades', data),
+  update: (id, data) => api.put(`/grades/${id}`, data),
+  delete: (id) => api.delete(`/grades/${id}`),
+};
+
+// School API
+export const schoolAPI = {
+  get: () => api.get('/school'),
+  update: (data) => api.put('/school', data),
 };
 
 export default api;

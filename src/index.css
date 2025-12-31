@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+body {
+    font-family: 'Inter', 'TAU-Paalai', 'Rachana', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+}
+
+.report-multilingual {
+    font-family: 'Inter', 'TAU-Paalai', 'Rachana', sans-serif !important;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+}
+
+.safe-top {
+    padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Mobile active state simulation */
+.btn-active:active {
+    transform: scale(0.96);
+}
+
+/* Native scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slideInUp 0.3s ease-out;
+}
+
+/* === TABLE CELL FIX (Scoped to Reports) === */
+.reports-container td,
+.reports-container th {
+    padding: 0;
+    height: 28px;
+    border: 1px solid #000;
+}
+
+.cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 500;
+    word-break: break-word;
+    /* Allow text wrapping */
+    white-space: normal;
+    /* Allow text wrapping */
+    text-align: center;
+}
+
+.cell.name {
+    justify-content: flex-start;
+    padding-left: 6px;
+    font-weight: 600;
+    text-align: left;
+}

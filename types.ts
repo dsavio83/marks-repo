@@ -11,6 +11,7 @@ export interface SchoolDetails {
   schoolCode: string;
   headMasterName: string;
   address?: string;
+  reportLanguages?: string[];
 }
 
 export interface GradeBoundary {
@@ -48,11 +49,11 @@ export interface User {
   // Metadata for student & teacher
   admissionNo?: string;
   mobile?: string;
-  email?: string; 
+  email?: string;
   gender?: 'Male' | 'Female' | 'Other';
   dob?: string;
   category?: 'General' | 'OBC' | 'SC' | 'ST';
-  caste?: string; 
+  caste?: string;
   religion?: string;
   fatherName?: string;
   motherName?: string;
@@ -61,11 +62,24 @@ export interface User {
   classId?: string;
 }
 
+export interface MarkSection {
+  id: string;
+  name: string;
+  markValue: number;
+  maxMarks: number;
+}
+
+export interface DetailedMark {
+  sectionId: string;
+  marks: number;
+}
+
 export interface ExamSubjectConfig {
   subjectId: string;
   maxTe: number;
   maxCe: number;
   included: boolean;
+  markSections?: MarkSection[];
 }
 
 export interface Exam {
@@ -76,17 +90,22 @@ export interface Exam {
 }
 
 export interface MarkRecord {
+  id?: string;
   studentId: string;
   subjectId: string;
   examId: string;
-  teMark?: string; 
+  teMark?: string;
   ceMark?: string;
+  detailedMarks?: DetailedMark[];
+  isLocked?: boolean;
+  aiAnalysis?: string;
+  aiAdvice?: string;
 }
 
 export interface AttendanceRecord {
-    examId: string;
-    studentId: string;
-    percentage: string;
+  examId: string;
+  studentId: string;
+  percentage: string;
 }
 
 export interface SubjectAssignment {
