@@ -8,11 +8,17 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["school", "management", "api", "education"],
+  "keywords": [
+    "school",
+    "management",
+    "api",
+    "education"
+  ],
   "author": "Smart School Pro Team",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

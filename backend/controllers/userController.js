@@ -42,6 +42,16 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Role safety: Non-admins can only update STUDENTS
+    if (req.user.role !== 'ADMIN' && user.role !== 'STUDENT') {
+      return res.status(403).json({ message: 'Only admins can update teachers or other admins' });
+    }
+
+    // Ensure non-admins cannot change a user's role to anything other than STUDENT
+    if (req.user.role !== 'ADMIN' && role && role !== 'STUDENT') {
+      return res.status(403).json({ message: 'Only admins can assign non-student roles' });
+    }
+
     // Update fields only if they are provided and not empty
     if (username) user.username = username;
     if (name) user.name = name;

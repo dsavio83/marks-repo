@@ -76,6 +76,25 @@ async function testAPI() {
         console.log('✅ Marks retrieved:', marksResponse.data.length, 'marks');
         console.log('');
 
+        // Test 9: Get School Details
+        console.log('9️⃣ Testing Get School Details...');
+        const schoolResponse = await api.get('/school');
+        console.log('✅ School details retrieved:', schoolResponse.data.name || 'Default');
+        console.log('');
+
+        // Test 10: Update School Details
+        console.log('🔟 Testing Update School Details...');
+        const updateData = {
+            name: 'Test Smart School',
+            place: 'Test City',
+            schoolCode: 'TEST123',
+            headMasterName: 'Test Principal',
+            address: 'Test Address'
+        };
+        const updateResponse = await api.put('/school', updateData);
+        console.log('✅ School details updated:', updateResponse.data.name);
+        console.log('');
+
         console.log('🎉 All API tests passed!\n');
         console.log('Summary:');
         console.log('✅ Health check working');

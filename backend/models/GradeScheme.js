@@ -4,7 +4,6 @@ const gradeBoundarySchema = new mongoose.Schema({
   grade: {
     type: String,
     required: [true, 'Grade is required'],
-    enum: ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E'],
     uppercase: true
   },
   minPercent: {

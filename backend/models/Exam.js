@@ -1,5 +1,23 @@
 const mongoose = require('mongoose');
 
+const markSectionSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Section name is required'],
+    trim: true
+  },
+  markValue: {
+    type: Number,
+    required: [true, 'Mark value is required'],
+    min: [0.5, 'Mark value must be at least 0.5']
+  },
+  maxMarks: {
+    type: Number,
+    required: [true, 'Maximum marks for this section is required'],
+    min: [0, 'Maximum marks cannot be negative']
+  }
+});
+
 const examSubjectConfigSchema = new mongoose.Schema({
   subjectId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -19,6 +37,10 @@ const examSubjectConfigSchema = new mongoose.Schema({
   included: {
     type: Boolean,
     default: true
+  },
+  markSections: {
+    type: [markSectionSchema],
+    default: []
   }
 });
 

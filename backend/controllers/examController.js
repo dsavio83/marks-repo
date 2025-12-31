@@ -25,11 +25,11 @@ const getExamById = async (req, res) => {
     const exam = await Exam.findById(req.params.id)
       .populate('classId', 'name section gradeLevel')
       .populate('subjectConfigs.subjectId', 'name shortCode');
-    
+
     if (!exam) {
       return res.status(404).json({ message: 'Exam not found' });
     }
-    
+
     res.json(exam);
   } catch (error) {
     console.error('Get exam error:', error);
@@ -57,10 +57,13 @@ const createExam = async (req, res) => {
 
     // Check if subjects exist
     for (const config of subjectConfigs) {
-      const subject = await Subject.findById(config.subjectId);
+      const subId = typeof config.subjectId === 'object' ? (config.subjectId._id || config.subjectId.id) : config.subjectId;
+      const subject = await Subject.findById(subId);
       if (!subject) {
-        return res.status(404).json({ message: `Subject with ID ${config.subjectId} not found` });
+        return res.status(404).json({ message: `Subject with ID ${subId} not found` });
       }
+      // Ensure it's stored as simple ID string
+      config.subjectId = subId;
     }
 
     const exam = new Exam({
@@ -71,16 +74,19 @@ const createExam = async (req, res) => {
 
     await exam.save();
 
+    const populatedExam = await Exam.findById(exam._id)
+      .populate('classId', 'name section gradeLevel')
+      .populate('subjectConfigs.subjectId', 'name shortCode');
+
     res.status(201).json({
       message: 'Exam created successfully',
-      exam: {
-        id: exam._id,
-        name: exam.name,
-        classId: exam.classId
-      }
+      exam: populatedExam
     });
   } catch (error) {
     console.error('Create exam error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: Object.values(error.errors).map(val => val.message).join(', ') });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -114,10 +120,13 @@ const updateExam = async (req, res) => {
 
       // Check if subjects exist
       for (const config of subjectConfigs) {
-        const subject = await Subject.findById(config.subjectId);
+        const subId = typeof config.subjectId === 'object' ? (config.subjectId._id || config.subjectId.id) : config.subjectId;
+        const subject = await Subject.findById(subId);
         if (!subject) {
-          return res.status(404).json({ message: `Subject with ID ${config.subjectId} not found` });
+          return res.status(404).json({ message: `Subject with ID ${subId} not found` });
         }
+        // Ensure it's stored as simple ID string
+        config.subjectId = subId;
       }
 
       exam.subjectConfigs = subjectConfigs;
@@ -128,16 +137,19 @@ const updateExam = async (req, res) => {
 
     await exam.save();
 
+    const populatedExam = await Exam.findById(exam._id)
+      .populate('classId', 'name section gradeLevel')
+      .populate('subjectConfigs.subjectId', 'name shortCode');
+
     res.json({
       message: 'Exam updated successfully',
-      exam: {
-        id: exam._id,
-        name: exam.name,
-        classId: exam.classId
-      }
+      exam: populatedExam
     });
   } catch (error) {
     console.error('Update exam error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: Object.values(error.errors).map(val => val.message).join(', ') });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -168,7 +180,7 @@ const getExamsByClass = async (req, res) => {
     const exams = await Exam.find({ classId: req.params.classId })
       .populate('classId', 'name section gradeLevel')
       .populate('subjectConfigs.subjectId', 'name shortCode');
-    
+
     res.json(exams);
   } catch (error) {
     console.error('Get exams by class error:', error);

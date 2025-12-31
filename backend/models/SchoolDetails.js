@@ -26,6 +26,10 @@ const schoolDetailsSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  reportLanguages: {
+    type: [String],
+    default: ['English', 'Tamil']
+  },
   createdAt: {
     type: Date,
     default: Date.now

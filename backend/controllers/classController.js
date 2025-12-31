@@ -183,11 +183,25 @@ const getClassSubjects = async (req, res) => {
   }
 };
 
+// @desc    Get all subject assignments (for populating app state)
+// @route   GET /api/classes/assignments/all
+// @access  Private (Admin/Teacher)
+const getAllAssignments = async (req, res) => {
+  try {
+    const assignments = await SubjectAssignment.find();
+    res.json(assignments);
+  } catch (error) {
+    console.error('Get all assignments error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllClasses,
   getClassById,
   createClass,
   updateClass,
   deleteClass,
-  getClassSubjects
+  getClassSubjects,
+  getAllAssignments
 };

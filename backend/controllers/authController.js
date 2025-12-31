@@ -14,6 +14,11 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Username already exists' });
     }
 
+    // Role safety: Non-admins can only register STUDENTS
+    if (req.user.role !== 'ADMIN' && role !== 'STUDENT') {
+      return res.status(403).json({ message: 'Only admins can register teachers or other admins' });
+    }
+
     // Create new user
     const user = new User({
       username,

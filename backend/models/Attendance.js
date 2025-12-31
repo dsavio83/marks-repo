@@ -13,11 +13,12 @@ const attendanceSchema = new mongoose.Schema({
   },
   percentage: {
     type: String,
-    required: [true, 'Attendance percentage is required'],
+    default: '',
     validate: {
-      validator: function(v) {
+      validator: function (v) {
+        if (v === '') return true;
         const num = parseFloat(v);
-        return num >= 0 && num <= 100;
+        return !isNaN(num) && num >= 0 && num <= 100;
       },
       message: 'Attendance percentage must be between 0 and 100'
     }
