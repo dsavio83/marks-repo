@@ -66,6 +66,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+// Only start server if not running on Vercel
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 module.exports = app;

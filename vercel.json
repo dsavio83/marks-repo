@@ -10,50 +10,14 @@
       }
     },
     {
-      "src": "backend/api/**/*.js",
+      "src": "backend/api/index.js",
       "use": "@vercel/node"
     }
   ],
   "rewrites": [
     {
-      "source": "/api/auth/(.*)",
-      "destination": "/backend/api/auth.js"
-    },
-    {
-      "source": "/api/users(.*)",
-      "destination": "/backend/api/users.js"
-    },
-    {
-      "source": "/api/classes(.*)",
-      "destination": "/backend/api/classes.js"
-    },
-    {
-      "source": "/api/subjects(.*)",
-      "destination": "/backend/api/subjects.js"
-    },
-    {
-      "source": "/api/exams(.*)",
-      "destination": "/backend/api/exams.js"
-    },
-    {
-      "source": "/api/marks(.*)",
-      "destination": "/backend/api/marks.js"
-    },
-    {
-      "source": "/api/grades(.*)",
-      "destination": "/backend/api/grades.js"
-    },
-    {
-      "source": "/api/attendance(.*)",
-      "destination": "/backend/api/attendance.js"
-    },
-    {
-      "source": "/api/school(.*)",
-      "destination": "/backend/api/school.js"
-    },
-    {
-      "source": "/api/health",
-      "destination": "/backend/api/health.js"
+      "source": "/api/(.*)",
+      "destination": "/backend/api/index.js"
     },
     {
       "source": "/assets/(.*)",
@@ -63,5 +27,8 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
