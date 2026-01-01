@@ -239,7 +239,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacher, state, set
             return;
         }
 
-        const headers = ["Class", "Section", "Name", "AdmissionNo", "Gender", "Category", "Caste", "Mobile", "Email", "Transport", "DOB", "Address"];
+        const headers = ["Class", "Division", "Name", "AdmissionNo", "Gender", "Category", "Caste", "Mobile", "Email", "Transport", "DOB", "Address"];
         const rows = myStudents.map((s: any) => [
             `"${primaryClass.gradeLevel}"`,
             `"${primaryClass.section}"`,
@@ -296,7 +296,8 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacher, state, set
                     // New format with Class and Section at [0] and [1]
                     // [0]:Class, [1]:Section, [2]:Name, [3]:AdmissionNo, [4]:Gender, [5]:Category, [6]:Caste, [7]:Mobile, [8]:Email, [9]:Transport, [10]:DOB, [11]:Address
 
-                    const hasClassCols = lines[0].toLowerCase().includes('class');
+                    const lowerHeader = lines[0].toLowerCase();
+                    const hasClassCols = lowerHeader.includes('class') || lowerHeader.includes('division') || lowerHeader.includes('section');
                     const offset = hasClassCols ? 2 : 0;
 
                     const name = cols[offset + 0];

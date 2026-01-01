@@ -28,8 +28,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
 
     // Determine active view based on URL path
     const pathPart = location.pathname.split('/').pop();
-    const activeTab = ['teachers', 'classes', 'subjects', 'grades', 'school', 'data'].includes(pathPart || '')
-        ? pathPart as 'teachers' | 'classes' | 'subjects' | 'grades' | 'school' | 'data'
+    const activeTab = ['teachers', 'students', 'classes', 'subjects', 'grades', 'school', 'data'].includes(pathPart || '')
+        ? pathPart as 'teachers' | 'students' | 'classes' | 'subjects' | 'grades' | 'school' | 'data'
         : 'stats';
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -160,7 +160,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
             showToast("No teachers to export.", 'error');
             return;
         }
-        const headers = ["Class", "Section", "Name", "Username", "Password", "Mobile", "Email", "DOB"];
+        const headers = ["Class", "Division", "Name", "Username", "Password", "Mobile", "Email", "DOB"];
         const rows = teachers.map((t: any) => {
             const tClass = state.classes.find((c: any) => getId(c.classTeacherId) === t.id);
             return [
@@ -181,7 +181,124 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
     };
 
     // --- CSV Import Teachers (Existing) ---
-    // --- CSV Import Teachers (Existing) ---
+    // --- CSV Export Students (New for Admin) ---
+    const handleExportStudents = () => {
+        const students = state.users.filter((u: any) => u.role === UserRole.STUDENT);
+        if (students.length === 0) {
+            showToast("No students to export.", 'error');
+            return;
+        }
+        const headers = ["Class", "Division", "Name", "AdmissionNo", "Gender", "Category", "Caste", "Mobile", "Email", "Transport", "DOB", "Address"];
+        const rows = students.map((s: any) => {
+            const sClass = state.classes.find((c: any) => c.id === getId(s.classId));
+            return [
+                `"${sClass?.gradeLevel || ''}"`, `"${sClass?.section || ''}"`,
+                `"${s.name}"`, `"${s.admissionNo}"`, `"${s.gender}"`, `"${s.category}"`,
+                `"${s.caste || ''}"`, `"${s.mobile || ''}"`, `"${s.email || ''}"`,
+                `"${s.transportMode || ''}"`, `"${s.dob || ''}"`, `"${s.address || ''}"`
+            ];
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((e: any[]) => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "students_list_all.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("Students exported successfully", 'success');
+    };
+
+    // --- CSV Import Students (New for Admin) ---
+    const handleImportStudents = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsSaving(true);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target?.result as string;
+                const lines = text.split('\n');
+                const lowerHeader = lines[0].toLowerCase();
+                const startIndex = (lowerHeader.includes('name') || lowerHeader.includes('class')) ? 1 : 0;
+                const hasClassCols = lowerHeader.includes('class') || lowerHeader.includes('division') || lowerHeader.includes('section');
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                showToast(`Importing ${lines.length - startIndex} students...`, 'success');
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+                    if (cols.length < 2) continue;
+
+                    const offset = hasClassCols ? 2 : 0;
+                    const gradeLevel = hasClassCols ? cols[0] : '';
+                    const sectionName = hasClassCols ? cols[1].toUpperCase() : '';
+
+                    // Find correct class
+                    const targetClass = state.classes.find((c: any) =>
+                        c.gradeLevel === gradeLevel && c.section === sectionName
+                    );
+
+                    const admissionNo = cols[offset + 1];
+                    const mobile = cols[offset + 5] || admissionNo;
+
+                    const studentData = {
+                        name: cols[offset + 0],
+                        username: admissionNo,
+                        admissionNo: admissionNo,
+                        mobile: mobile,
+                        password: mobile, // default password as mobile
+                        gender: (cols[offset + 2] === 'Female' ? 'Female' : 'Male') as any,
+                        category: (cols[offset + 3] || 'General') as any,
+                        caste: cols[offset + 4] || '',
+                        email: cols[offset + 6] || '',
+                        transportMode: cols[offset + 7] as any || '',
+                        dob: cols[offset + 8] || '',
+                        address: cols[offset + 9] || '',
+                        role: UserRole.STUDENT,
+                        classId: targetClass ? targetClass.id : undefined
+                    };
+
+                    if (!studentData.classId && hasClassCols) {
+                        console.warn(`Class ${gradeLevel}-${sectionName} not found for student ${studentData.name}. Skipping class assignment.`);
+                    }
+
+                    try {
+                        const response = await userAPI.create(studentData);
+                        const savedStudent = response.data;
+                        setState((prev: any) => ({
+                            ...prev,
+                            users: [...prev.users.filter((u: any) => u.id !== savedStudent.id), savedStudent]
+                        }));
+                        successCount++;
+                    } catch (err) {
+                        console.error('Failed to import student:', studentData.name, err);
+                        errorCount++;
+                    }
+                }
+
+                if (successCount > 0) {
+                    showToast(`Successfully imported ${successCount} students.${errorCount > 0 ? ` (${errorCount} failed)` : ''}`, 'success');
+                } else if (errorCount > 0) {
+                    showToast(`Failed to import students. Check console for details.`, 'error');
+                }
+            } catch (error) {
+                showToast('Failed to import CSV.', 'error');
+            } finally {
+                setIsSaving(false);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    };
+
     const handleImportTeachers = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -192,7 +309,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
             try {
                 const text = event.target?.result as string;
                 const lines = text.split('\n');
-                const startIndex = lines[0].toLowerCase().includes('name') ? 1 : 0;
+                const lowerHeader = lines[0].toLowerCase();
+                const startIndex = (lowerHeader.includes('name') || lowerHeader.includes('class')) ? 1 : 0;
+                const hasClassCols = lowerHeader.includes('class') || lowerHeader.includes('division') || lowerHeader.includes('section');
 
                 let successCount = 0;
                 let errorCount = 0;
@@ -206,7 +325,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                     const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
                     if (cols.length < 2) continue;
 
-                    const hasClassCols = lines[0].toLowerCase().includes('class');
                     const offset = hasClassCols ? 2 : 0;
 
                     const teacherData = {
@@ -840,7 +958,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                             </select>
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-slate-500 uppercase">Section</label>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Division</label>
                                             <input name="section" defaultValue={editingItem?.section} required className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-500 font-bold" placeholder="A, B, C..." />
                                         </div>
                                     </div>
