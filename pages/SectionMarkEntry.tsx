@@ -147,6 +147,9 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
 
         setIsSaving(true);
         try {
+            const bulkPayloads: any[] = [];
+            const sections = activeConfig.markSections || [];
+
             for (const student of filteredStudents) {
                 const isAbsent = absentMap[student.id];
 
@@ -158,7 +161,21 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                 );
 
                 if (user.role === UserRole.STUDENT && existingMark?.isLocked) {
-                    continue; // Skip if already locked
+                    continue; // Skip if already locked for students
+                }
+
+                // Check if this student should be processed
+                // Process if: 
+                // 1. Is marked absent
+                // 2. Has changed marks (entryData exists)
+                // 3. Has an existing mark record (Need to update lock status or ensure consistency)
+                const hasEntry = !!entryData[student.id];
+
+                // If the student is untouched (no entry, not absent, no existing mark), SKIP them.
+                // This prevents "locking" students with 0s if we haven't graded them yet.
+                // UNLESS user explicitly wants to "fill 0" but usually "untouched" implies "skip".
+                if (!isAbsent && !hasEntry && !existingMark) {
+                    continue;
                 }
 
                 let savePayload: any;
@@ -170,22 +187,34 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         examId: selectedExamId,
                         detailedMarks: [], // Clear detailed marks if absent
                         teMark: 'A', // Mark as Absent
-                        ceMark: 'A', // Optional: Mark CE as Absent too? usually if absent for exam, TE is A. Keep logic consistent.
-                        isLocked: user.role === UserRole.STUDENT ? true : (existingMark?.isLocked || false)
+                        ceMark: 'A',
+                        isLocked: true // Auto-lock on save
                     };
                 } else {
                     const studentMarks = entryData[student.id] || {};
-                    const detailedMarks = Object.entries(studentMarks).map(([sid, m]) => ({
-                        sectionId: sid,
-                        marks: m
-                    }));
+
+                    // Iterate over ALL sections to ensure completeness. Default to 0 if missing.
+                    const detailedMarks = sections.map((section: any) => {
+                        const val = studentMarks[section.id];
+                        // If value is undefined or null, treat as 0
+                        // NOTE: If existingMark exists but entryData doesn't (untouched row), 
+                        // we should use existing tokens? 
+                        // But entryData is initialized from existing marks in useEffect!
+                        // So entryData WILL exist if existingMark exists.
+                        // So if entryData is empty here, it means truly empty inputs.
+                        const markVal = (val === undefined || val === null) ? 0 : val;
+                        return {
+                            sectionId: section.id,
+                            marks: markVal
+                        };
+                    });
 
                     const totalObtained = detailedMarks.reduce((acc: number, curr: any) => acc + (curr.marks as number), 0);
                     const roundedTotal = Math.ceil(totalObtained);
 
-                    // Strict validation: Must match activeConfig.maxTe exactly (only if NOT absent)
-                    if (roundedTotal !== activeConfig.maxTe) {
-                        showToastMsg(`Error for ${student.name}: Total marks (${roundedTotal}) must match exactly with Max TE (${activeConfig.maxTe})`, 'error');
+                    // Validation: Must not exceed activeConfig.maxTe
+                    if (roundedTotal > activeConfig.maxTe) {
+                        showToastMsg(`Error for ${student.name}: Total marks (${roundedTotal}) cannot exceed Max TE (${activeConfig.maxTe})`, 'error');
                         setIsSaving(false);
                         return;
                     }
@@ -196,26 +225,111 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         examId: selectedExamId,
                         detailedMarks,
                         teMark: roundedTotal.toString(),
-                        isLocked: user.role === UserRole.STUDENT ? true : (existingMark?.isLocked || false)
+                        isLocked: true // Auto-lock on save
                     };
                 }
 
-                const res = await markAPI.create(savePayload);
-
-                // Trigger AI Analysis
-                await markAPI.analyze(res.data.mark.id);
+                bulkPayloads.push(savePayload);
             }
 
-            showToastMsg('All marks saved, locked, and AI analyzed successfully!');
-            // Refresh local state (in a real app, use a proper state management Refresh)
-            // fetchAllData() is in App.tsx, but we can't call it here easily without a shared context.
-            // For now, let's assume the user will see the updates on next load or we trigger a manual refresh.
-            // Better: Update state manually
+            if (bulkPayloads.length > 0) {
+                const res = await markAPI.bulkCreate({ marks: bulkPayloads });
+
+                // Update local state with the returned marks to reflect "Locked" status immediately
+                if (res && res.data && Array.isArray(res.data)) {
+                    setState((prev: any) => {
+                        // Remove old marks that are being updated
+                        const otherMarks = prev.marks.filter((m: any) =>
+                            !bulkPayloads.some(bp =>
+                                getId(bp.studentId) === getId(m.studentId) &&
+                                getId(bp.subjectId) === getId(m.subjectId) &&
+                                getId(bp.examId) === getId(m.examId)
+                            )
+                        );
+                        return { ...prev, marks: [...otherMarks, ...res.data] };
+                    });
+                }
+
+                showToastMsg('Marks saved and locked successfully!');
+            } else {
+                showToastMsg('No changes to save.', 'error');
+            }
+
         } catch (error: any) {
             console.error(error);
-            showToastMsg('Failed to save some marks', 'error');
+            showToastMsg('Failed to save marks', 'error');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleToggleLock = async (student: any) => {
+        const existingMark = state.marks.find((m: any) =>
+            getId(m.studentId) === student.id &&
+            getId(m.subjectId) === selectedSubjectId &&
+            getId(m.examId) === selectedExamId
+        );
+
+        const currentLock = existingMark?.isLocked || false;
+        const newLockState = !currentLock;
+        const isAbsent = absentMap[student.id];
+
+        let payload: any;
+
+        if (isAbsent) {
+            payload = {
+                studentId: student.id,
+                subjectId: selectedSubjectId,
+                examId: selectedExamId,
+                detailedMarks: [],
+                teMark: 'A',
+                ceMark: 'A',
+                isLocked: newLockState
+            };
+        } else {
+            const studentMarks = entryData[student.id] || {};
+            const detailedMarks = Object.entries(studentMarks).map(([sid, m]) => ({
+                sectionId: sid,
+                marks: m
+            }));
+            const totalObtained = detailedMarks.reduce((acc: number, curr: any) => acc + (curr.marks as number), 0);
+            const roundedTotal = Math.ceil(totalObtained);
+
+            if (roundedTotal > activeConfig.maxTe) {
+                showToastMsg(`Cannot lock: Total marks exceed limit`, 'error');
+                return;
+            }
+
+            payload = {
+                studentId: student.id,
+                subjectId: selectedSubjectId,
+                examId: selectedExamId,
+                detailedMarks,
+                teMark: roundedTotal.toString(),
+                isLocked: newLockState
+            };
+        }
+
+        try {
+            const res = await markAPI.bulkCreate({ marks: [payload] });
+            if (res && res.data && res.data[0]) {
+                const updatedMark = res.data[0];
+                setState((prev: any) => ({
+                    ...prev,
+                    marks: [
+                        ...prev.marks.filter((m: any) =>
+                            !(getId(m.studentId) === student.id &&
+                                getId(m.subjectId) === selectedSubjectId &&
+                                getId(m.examId) === selectedExamId)
+                        ),
+                        updatedMark
+                    ]
+                }));
+                showToastMsg(newLockState ? 'Locked' : 'Unlocked');
+            }
+        } catch (e) {
+            console.error(e);
+            showToastMsg('Failed to toggle lock', 'error');
         }
     };
 
@@ -309,9 +423,9 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                             const isAbsent = absentMap[student.id];
 
                             return (
-                                <div key={student.id} className={`native-card !p-4 transition-all ${totalExceeds ? 'bg-red-50/50 border-red-100' : ''}`}>
+                                <div className={`native-card !p-4 transition-all ${isLocked ? 'bg-amber-50/30 border-amber-200' : ''} ${totalExceeds ? 'bg-red-50/50 border-red-100' : ''}`}>
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 min-w-0">
+                                        <div className="flex items-center gap-3 min-w-0 md:w-1/4">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isAbsent ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                                                 {isAbsent ? 'A' : student.name.charAt(0)}
                                             </div>
@@ -324,20 +438,20 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            {/* Absent Toggle - Only for teachers/admins */}
+                                        <div className="flex items-center gap-4 flex-1 justify-end">
+                                            {/* Absent Toggle */}
                                             {user.role !== UserRole.STUDENT && (
                                                 <button
                                                     onClick={() => toggleAbsent(student.id)}
                                                     disabled={isLocked}
-                                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-black uppercase transition-all ${isAbsent ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                                    className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-black uppercase transition-all ${isAbsent ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'}`}
                                                 >
                                                     <UserX size={12} />
                                                     {isAbsent ? 'Absent' : 'Present'}
                                                 </button>
                                             )}
 
-                                            <div className="flex-1 overflow-x-auto custom-scrollbar -mx-2 px-2">
+                                            <div className="flex-1 overflow-x-auto custom-scrollbar -mx-2 px-2 flex justify-center">
                                                 <div className="flex gap-2 min-w-max">
                                                     {sections.map((s: any) => (
                                                         <div key={s.id} className="flex flex-col items-center">
@@ -363,6 +477,26 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                                                     {!isAbsent && <span className="opacity-50 text-[10px]">/ {activeConfig?.maxTe}</span>}
                                                 </div>
                                             </div>
+
+                                            {/* Lock Toggle - Moved to End */}
+                                            {user.role !== UserRole.STUDENT && (
+                                                <div className="pl-4 border-l border-slate-100 ml-2">
+                                                    <label className="flex flex-col items-center gap-1 cursor-pointer group">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={!!isLocked}
+                                                            onChange={() => handleToggleLock(student)}
+                                                        />
+                                                        <div className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center ${isLocked ? 'bg-amber-100 border-amber-300 text-amber-600' : 'bg-slate-50 border-slate-200 text-slate-300 hover:border-slate-300'}`}>
+                                                            {isLocked ? <CheckCircle2 size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-slate-400" />}
+                                                        </div>
+                                                        <span className={`text-[8px] font-black uppercase tracking-widest ${isLocked ? 'text-amber-600' : 'text-slate-300'}`}>
+                                                            {isLocked ? 'Locked' : 'Open'}
+                                                        </span>
+                                                    </label>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

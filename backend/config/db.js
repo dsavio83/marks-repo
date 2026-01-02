@@ -18,8 +18,8 @@ const connectDB = async () => {
     // Connection options optimized for serverless
     const options = {
       maxPoolSize: 10, // Limit connection pool size for serverless
-      minPoolSize: 2,
-      serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of 30s
+      minPoolSize: 0, // Let connections scale down to 0 if unused
+      serverSelectionTimeoutMS: 30000, // Timeout after 30s
       socketTimeoutMS: 45000,
       family: 4, // Use IPv4, skip trying IPv6
       retryWrites: true,
@@ -39,7 +39,10 @@ const connectDB = async () => {
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
     console.error('Server will continue running, but database operations will fail.');
-    console.error('Please check your MONGODB_URI in the .env file.');
+    console.error('POSSIBLE CAUSES:');
+    console.error('1. Your IP address is not whitelisted in MongoDB Atlas.');
+    console.error('2. Incorrect MONGODB_URI in .env file.');
+    console.error('3. Network connectivity issues (firewall/VPN).');
 
     // In serverless, we don't exit the process
     // Return null to indicate connection failure

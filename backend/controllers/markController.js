@@ -253,6 +253,64 @@ const getMarksByStudentAndExam = async (req, res) => {
   }
 };
 
+
+
+// @desc    Bulk create or update mark records
+// @route   POST /api/marks/bulk
+// @access  Private (Admin/Teacher)
+const bulkCreateMarks = async (req, res) => {
+  try {
+    const { marks } = req.body;
+
+    if (!Array.isArray(marks) || marks.length === 0) {
+      return res.status(400).json({ message: 'No marks provided' });
+    }
+
+    const operations = marks.map(markData => {
+      const { studentId, subjectId, examId, teMark, ceMark, detailedMarks, isLocked, aiAnalysis, aiAdvice } = markData;
+
+      const update = { updatedAt: new Date() };
+      if (teMark !== undefined) update.teMark = teMark;
+      if (ceMark !== undefined) update.ceMark = ceMark;
+      if (detailedMarks !== undefined) update.detailedMarks = detailedMarks;
+      if (isLocked !== undefined) update.isLocked = isLocked;
+      if (aiAnalysis !== undefined) update.aiAnalysis = aiAnalysis;
+      if (aiAdvice !== undefined) update.aiAdvice = aiAdvice;
+
+      return {
+        updateOne: {
+          filter: { studentId, subjectId, examId },
+          update: { $set: update },
+          upsert: true
+        }
+      };
+    });
+
+    const result = await Mark.bulkWrite(operations);
+
+    // Fetch the updated documents to return to the frontend
+    // We assume the batch is for the same Subject and Exam (based on frontend logic)
+    // But to be safe, we can filter by the IDs present in the request
+    const studentIds = marks.map(m => m.studentId);
+    const subjectIds = [...new Set(marks.map(m => m.subjectId))];
+    const examIds = [...new Set(marks.map(m => m.examId))];
+
+    const updatedMarks = await Mark.find({
+      studentId: { $in: studentIds },
+      subjectId: { $in: subjectIds },
+      examId: { $in: examIds }
+    })
+      .populate('studentId', 'name username admissionNo') // Populate helpful fields for frontend
+      .populate('subjectId', 'name shortCode')
+      .populate('examId', 'name');
+
+    res.json(updatedMarks);
+
+  } catch (error) {
+    console.error('Bulk create marks error:', error);
+  }
+};
+
 module.exports = {
   getAllMarks,
   getMarksByExam,
@@ -261,5 +319,6 @@ module.exports = {
   updateMark,
   deleteMark,
   getMarksByStudentAndExam,
-  analyzeMarkWithAI
+  analyzeMarkWithAI,
+  bulkCreateMarks
 };

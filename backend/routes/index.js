@@ -134,6 +134,8 @@ router.get('/marks', auth, (req, res, next) => {
 router.get('/marks/exam/:examId', auth, markController.getMarksByExam);
 router.get('/marks/student/:studentId', auth, markController.getMarksByStudent);
 router.get('/marks/student/:studentId/exam/:examId', auth, markController.getMarksByStudentAndExam);
+
+router.post('/marks/bulk', auth, markController.bulkCreateMarks);
 router.post('/marks', auth, markController.createMark);
 router.put('/marks/:id', auth, markController.updateMark);
 router.put('/marks', auth, queryToParams('id'), markController.updateMark);

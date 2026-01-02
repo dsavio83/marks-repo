@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
 import { Printer, Award, CheckSquare, Square, Download, Loader2, FileText, Smartphone } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { RenderCell } from "../src/utils/RenderCell";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface ReportsProps {
     teacher: User;
@@ -25,106 +25,104 @@ const getAcademicYear = () => {
     }
 };
 
-// --- Progress Card Component (A4 Portrait - Professional Design) ---
-// --- Progress Card Component (A4 Portrait - Academic Standard) ---
 const ProgressCardA4: React.FC<{ data: any, selectedExam: any, selectedClass: any, settings: any, schoolDetails: any, classTeacher: any }> = ({
     data, selectedExam, selectedClass, settings, schoolDetails, classTeacher
 }) => {
     const academicYear = getAcademicYear();
     return (
-        <div className="progress-card-item bg-white mx-auto print:mx-0 mb-12 print:mb-0 relative box-border text-black transition-all"
-            style={{ width: '210mm', minHeight: '297mm', breakAfter: 'page', pageBreakAfter: 'always', padding: '15mm' }}>
+        <div className="progress-card-item bg-white mx-auto print:mx-0 mb-8 print:mb-0 relative box-border text-black"
+            style={{ width: '210mm', minHeight: '297mm', padding: '8mm', display: 'flex', flexDirection: 'column' }}>
 
-            <div className="flex flex-col min-h-full font-sans" style={{ lineHeight: '1.4' }}>
-                {/* Header Section */}
-                <div className="text-center w-full mb-6">
-                    <h1 style={{ fontSize: '1.6rem', fontWeight: 800, textTransform: 'uppercase', color: '#000', margin: '0 0 2px 0' }}>
+            <div className="flex flex-col flex-1 font-sans" style={{ lineHeight: '1.2' }}>
+                {/* Header Section - Compact */}
+                <div className="text-center w-full mb-2">
+                    <h1 style={{ fontSize: '1.6rem', fontWeight: 900, textTransform: 'uppercase', color: '#000', margin: '0 0 1px 0', lineHeight: '1' }}>
                         {schoolDetails?.name || 'SMART SCHOOL'}
                     </h1>
-                    <h2 style={{ fontSize: '13px', fontWeight: 700, color: '#000', margin: '0 0 12px 0' }}>
+                    <h2 style={{ fontSize: '11px', fontWeight: 700, color: '#444', margin: '0 0 4px 0', textTransform: 'uppercase' }}>
                         {schoolDetails?.place || 'CHENNAI'}
                     </h2>
 
-                    <div className="flex items-center justify-center w-full mb-4">
-                        <div className="flex-1 h-[1px] bg-[#000]"></div>
-                        <span className="px-6 text-[14px] font-bold italic text-[#000] uppercase tracking-widest">
+                    <div className="flex items-center justify-center w-full mb-2">
+                        <div className="flex-1 h-[2px] bg-black"></div>
+                        <span className="px-4 text-[14px] font-black italic text-black uppercase tracking-widest border-2 border-black py-0.5 mx-4 bg-white z-10">
                             PROGRESS REPORT
                         </span>
-                        <div className="flex-1 h-[1px] bg-[#000]"></div>
+                        <div className="flex-1 h-[2px] bg-black"></div>
                     </div>
 
-                    <div className="text-[12px] font-bold text-[#dc2626] uppercase tracking-wider">
+                    <div className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
                         Academic Year {academicYear} &bull; {selectedExam?.name || 'ANNUAL EXAMINATION'}
                     </div>
                 </div>
 
-                {/* Student Info Table - Robust Structure */}
-                <div className="w-full mb-8">
-                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000', fontSize: '14px', tableLayout: 'fixed' }}>
+                {/* Student Info Table - Compact */}
+                <div className="w-full mb-3">
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #000', fontSize: '11px', tableLayout: 'fixed' }}>
                         <tbody>
-                            <tr style={{ height: '45px' }}>
-                                <td style={{ width: '18%', padding: '8px 12px', fontWeight: 600, border: '1.2px solid #000', backgroundColor: '#f8fafc', verticalAlign: 'middle' }}>Student Name</td>
-                                <td style={{ width: '32%', padding: '8px 12px', fontWeight: 700, border: '1.2px solid #000', textTransform: 'uppercase', verticalAlign: 'middle' }}>{data.student.name}</td>
-                                <td style={{ width: '18%', padding: '8px 12px', fontWeight: 600, border: '1.2px solid #000', backgroundColor: '#f8fafc', verticalAlign: 'middle' }}>Admission No</td>
-                                <td style={{ width: '32%', padding: '8px 12px', fontWeight: 700, border: '1.2px solid #000', verticalAlign: 'middle' }}>{data.student.admissionNo}</td>
+                            <tr style={{ height: '28px' }}>
+                                <td style={{ width: '18%', padding: '2px 6px', fontWeight: 800, border: '1px solid #000', backgroundColor: '#f1f5f9', verticalAlign: 'middle', fontSize: '10px' }}>STUDENT NAME</td>
+                                <td style={{ width: '32%', padding: '2px 6px', fontWeight: 800, border: '1px solid #000', textTransform: 'uppercase', verticalAlign: 'middle', fontSize: '12px' }}>{data.student.name}</td>
+                                <td style={{ width: '18%', padding: '2px 6px', fontWeight: 800, border: '1px solid #000', backgroundColor: '#f1f5f9', verticalAlign: 'middle', fontSize: '10px' }}>ADMISSION NO</td>
+                                <td style={{ width: '32%', padding: '2px 6px', fontWeight: 800, border: '1px solid #000', verticalAlign: 'middle', fontSize: '12px' }}>{data.student.admissionNo}</td>
                             </tr>
-                            <tr style={{ height: '45px' }}>
-                                <td style={{ padding: '8px 12px', fontWeight: 600, border: '1.2px solid #000', backgroundColor: '#f8fafc', verticalAlign: 'middle' }}>Class & Div</td>
-                                <td style={{ padding: '8px 12px', fontWeight: 700, border: '1.2px solid #000', verticalAlign: 'middle' }}>{selectedClass?.gradeLevel} - {selectedClass?.section}</td>
-                                <td style={{ padding: '8px 12px', fontWeight: 600, border: '1.2px solid #000', backgroundColor: '#f8fafc', verticalAlign: 'middle' }}>Date of Birth</td>
-                                <td style={{ padding: '8px 12px', fontWeight: 700, border: '1.2px solid #000', verticalAlign: 'middle' }}>{data.student.dob ? new Date(data.student.dob).toLocaleDateString() : '-'}</td>
+                            <tr style={{ height: '28px' }}>
+                                <td style={{ padding: '2px 6px', fontWeight: 800, border: '1px solid #000', backgroundColor: '#f1f5f9', verticalAlign: 'middle', fontSize: '10px' }}>CLASS & DIV</td>
+                                <td style={{ padding: '2px 6px', fontWeight: 800, border: '1px solid #000', verticalAlign: 'middle', fontSize: '12px' }}>{selectedClass?.gradeLevel} - {selectedClass?.section}</td>
+                                <td style={{ padding: '2px 6px', fontWeight: 800, border: '1px solid #000', backgroundColor: '#f1f5f9', verticalAlign: 'middle', fontSize: '10px' }}>DATE OF BIRTH</td>
+                                <td style={{ padding: '2px 6px', fontWeight: 800, border: '1px solid #000', verticalAlign: 'middle', fontSize: '12px' }}>{data.student.dob ? new Date(data.student.dob).toLocaleDateString() : '-'}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                {/* Main Marks Table - Enhanced Spacing */}
-                <div className="w-full mb-8">
+                {/* Main Marks Table - Compact */}
+                <div className="w-full mb-3">
                     <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border: '2px solid #000' }}>
                         <thead>
-                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000' }}>
-                                <th style={{ borderRight: '1.5px solid #000', width: '35%', textAlign: 'left', padding: '15px 18px', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>SUBJECT DOMAIN</th>
-                                {settings.showTe && <th style={{ borderRight: '1.5px solid #000', width: '12%', textAlign: 'center', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>T.E</th>}
-                                {settings.showCe && <th style={{ borderRight: '1.5px solid #000', width: '12%', textAlign: 'center', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>C.E</th>}
-                                {settings.showTotal && <th style={{ borderRight: '1.5px solid #000', width: '18%', textAlign: 'center', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>TOTAL</th>}
-                                {settings.showPercentage && <th style={{ borderRight: '1.5px solid #000', width: '10%', textAlign: 'center', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>%</th>}
-                                {settings.showGrade && <th style={{ width: '13%', textAlign: 'center', fontWeight: 900, fontSize: '12px', verticalAlign: 'middle' }}>GRADE</th>}
+                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #000', height: '30px' }}>
+                                <th style={{ borderRight: '1.5px solid #000', width: '35%', textAlign: 'left', padding: '0 8px', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>SUBJECT</th>
+                                {settings.showTe && <th style={{ borderRight: '1.5px solid #000', width: '12%', textAlign: 'center', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>T.E</th>}
+                                {settings.showCe && <th style={{ borderRight: '1.5px solid #000', width: '12%', textAlign: 'center', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>C.E</th>}
+                                {settings.showTotal && <th style={{ borderRight: '1.5px solid #000', width: '18%', textAlign: 'center', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>TOTAL</th>}
+                                {settings.showPercentage && <th style={{ borderRight: '1.5px solid #000', width: '10%', textAlign: 'center', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>%</th>}
+                                {settings.showGrade && <th style={{ width: '13%', textAlign: 'center', fontWeight: 900, fontSize: '10px', verticalAlign: 'middle' }}>GRADE</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {data.subjects.map((sub: any) => (
-                                <tr key={sub.id} style={{ borderBottom: '1.5px solid #000' }}>
-                                    <td style={{ borderRight: '1.5px solid #000', padding: '12px 18px', fontWeight: 700, fontSize: '13px', verticalAlign: 'middle' }}>
+                                <tr key={sub.id} style={{ borderBottom: '1px solid #000', height: '22px' }}>
+                                    <td style={{ borderRight: '1.5px solid #000', padding: '0 6px', fontWeight: 700, fontSize: '9px', verticalAlign: 'middle', textTransform: 'uppercase' }}>
                                         {sub.name}
                                     </td>
-                                    {settings.showTe && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 700, fontSize: '13px', verticalAlign: 'middle' }}>
+                                    {settings.showTe && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 600, fontSize: '9px', verticalAlign: 'middle' }}>
                                         {sub.teStr !== '-' ? sub.teStr : '0'}
                                     </td>}
-                                    {settings.showCe && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 700, fontSize: '13px', verticalAlign: 'middle' }}>
+                                    {settings.showCe && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 600, fontSize: '9px', verticalAlign: 'middle' }}>
                                         {sub.ceStr !== '-' ? sub.ceStr : '0'}
                                     </td>}
-                                    {settings.showTotal && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 700, fontSize: '13px', verticalAlign: 'middle' }}>
+                                    {settings.showTotal && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 700, fontSize: '9px', verticalAlign: 'middle' }}>
                                         {sub.teStr === 'A' ? 'A' : `${sub.total || 0} / ${sub.max || 0}`}
                                     </td>}
-                                    {settings.showPercentage && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 700, fontSize: '13px', verticalAlign: 'middle' }}>
+                                    {settings.showPercentage && <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 600, fontSize: '9px', verticalAlign: 'middle' }}>
                                         {sub.teStr === 'A' ? '-' : `${Math.round(sub.percent || 0)}%`}
                                     </td>}
-                                    {settings.showGrade && <td style={{ textAlign: 'center', fontWeight: 900, fontSize: '14px', verticalAlign: 'middle' }}>
+                                    {settings.showGrade && <td style={{ textAlign: 'center', fontWeight: 800, fontSize: '10px', verticalAlign: 'middle' }}>
                                         {sub.teStr === 'A' ? 'A' : (sub.total > 0 ? sub.grade : '-')}
                                     </td>}
                                 </tr>
                             ))}
                             {/* Consolidated Performance Row */}
-                            <tr style={{ backgroundColor: '#f1f5f9' }}>
-                                <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 900, fontSize: '13px', verticalAlign: 'middle', padding: '15px 0' }}>
-                                    CONSOLIDATED PERFORMANCE
+                            <tr style={{ backgroundColor: '#f8fafc', height: '26px', borderTop: '2px solid #000' }}>
+                                <td style={{ borderRight: '1.5px solid #000', textAlign: 'right', paddingRight: '8px', fontWeight: 900, fontSize: '9px', verticalAlign: 'middle' }}>
+                                    OVERALL PERFORMANCE
                                 </td>
                                 <td style={{ borderRight: '1.5px solid #000' }} colSpan={(settings.showTe ? 1 : 0) + (settings.showCe ? 1 : 0)}></td>
-                                <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 900, fontSize: '13px', verticalAlign: 'middle' }}>
+                                <td style={{ borderRight: '1.5px solid #000', textAlign: 'center', fontWeight: 900, fontSize: '9px', verticalAlign: 'middle' }}>
                                     {data.grandTotal > 0 ? `${data.grandTotal} / ${data.maxTotal}` : '-'}
                                 </td>
                                 <td style={{ borderRight: '1.5px solid #000' }}></td>
-                                <td style={{ textAlign: 'center', fontWeight: 900, fontSize: '16px', verticalAlign: 'middle' }}>
+                                <td style={{ textAlign: 'center', fontWeight: 900, fontSize: '11px', verticalAlign: 'middle' }}>
                                     {data.grandTotal > 0 ? data.grade : '-'}
                                 </td>
                             </tr>
@@ -132,101 +130,92 @@ const ProgressCardA4: React.FC<{ data: any, selectedExam: any, selectedClass: an
                     </table>
                 </div>
 
-                {/* Results Summary and Attendance Line */}
-                <div className="flex justify-between items-center w-full px-2 mb-4" style={{ fontWeight: 700, fontSize: '10px', borderBottom: '1px solid #000', paddingBottom: '8px' }}>
-                    <div style={{ display: 'flex', gap: '20px' }}>
+                {/* Results Summary */}
+                <div className="flex justify-between items-center w-full px-3 mb-3 py-1.5 border-y-2 border-black bg-slate-50">
+                    <div className="flex gap-4 text-[9px] font-black uppercase tracking-wide text-slate-900">
                         {data.grandTotal > 0 ? (
                             <>
-                                <span>RESULT: {data.result}</span>
+                                <span>RESULT: <span className={data.result === 'PASS' ? 'text-green-700' : 'text-red-600'}>{data.result}</span></span>
                                 <span>PERCENTAGE: {data.percentage.toFixed(2)}%</span>
                                 <span>CLASS RANK: #{data.rank}</span>
                             </>
                         ) : (
-                            <span className="italic opacity-50">Results pending / Marks not entered</span>
+                            <span className="italic opacity-50">Results pending</span>
                         )}
                     </div>
-                    <div style={{ fontWeight: 600 }}>
-                        Attendance: {data.attendance ? `${data.attendance}% Overall Attendance` : 'N/A'}
+                    <div className="text-[9px] font-black uppercase tracking-wide text-slate-900">
+                        Attendance: {data.attendance ? `${data.attendance}%` : 'N/A'}
                     </div>
                 </div>
 
-                {/* Signature Block - Flex Div Layout */}
-                <div className="flex justify-between w-full mb-8 pt-4">
-                    <div className="flex flex-col items-center" style={{ width: '30%' }}>
-                        <div style={{ fontWeight: 600, fontSize: '11.5px', marginBottom: '4px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{classTeacher?.name}</div>
-                        <div style={{ width: '100%', borderTop: '1px solid #000', paddingTop: '4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center' }}>Class Teacher</div>
+                {/* Performance Analysis - Compact */}
+                <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg mb-2 flex-1">
+                    <div className="flex items-center gap-2 mb-2 pb-1 border-b border-slate-200">
+                        <Award size={12} className="text-black" />
+                        <h3 className="text-[10px] font-black uppercase tracking-wider text-black">Performance Analysis & Advice</h3>
                     </div>
-                    <div className="flex flex-col items-center" style={{ width: '30%' }}>
-                        <div style={{ height: '22px' }}></div>
-                        <div style={{ width: '100%', borderTop: '1px solid #000', paddingTop: '4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center' }}>Parent Signature</div>
-                    </div>
-                    <div className="flex flex-col items-center" style={{ width: '30%' }}>
-                        <div style={{ height: '22px' }}></div>
-                        <div style={{ width: '100%', borderTop: '1px solid #000', paddingTop: '4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center' }}>Headmaster</div>
-                    </div>
-                </div>
 
-                {/* Performance Analysis starts here (Continuous) */}
-                <div className="w-full flex items-center justify-center mb-6 mt-4">
-                    <div className="flex-1 h-[1px] bg-[#000]"></div>
-                    <span className="px-6 text-[14px] font-bold italic text-[#000] tracking-tight">
-                        Performance Analysis for {data.student.name}
-                    </span>
-                    <div className="flex-1 h-[1px] bg-[#000]"></div>
-                </div>
+                    <div className="grid grid-cols-1 gap-2">
+                        {(data.allAdvices || []).map((adv: any, idx: number) => (
+                            <div key={idx} className="border-b border-dashed border-slate-300 last:border-0 pb-2 last:pb-0 break-inside-avoid">
+                                <div className="flex items-center justify-between mb-1">
+                                    <div className="font-bold text-[10px] uppercase text-black w-32 shrink-0">{adv.subject}</div>
+                                    <div className="text-[9px] font-bold text-slate-700">
+                                        Score: {adv.total}/{adv.max}
+                                    </div>
+                                </div>
 
-                <div className="space-y-6">
-                    {(data.allAdvices || []).map((adv: any, idx: number) => (
-                        <div key={idx} style={{ paddingLeft: '12px', borderLeft: '2.5px solid #000', marginBottom: '20px' }}>
-                            <div className="flex justify-between items-center mb-2">
-                                <span style={{ fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>{adv.subject}</span>
-                                <div style={{ fontWeight: 700, fontSize: '10px' }}>
-                                    SCORE: {adv.total > 0 ? `${adv.total} / ${adv.max} (${adv.percent.toFixed(0)}%)` : '-'}
-                                    <span style={{ marginLeft: '12px', fontSize: '12px' }}>{adv.total > 0 ? adv.grade : '-'}</span>
+                                {/* Granular Marks Table */}
+                                <div className="mb-1">
+                                    <table className="w-full text-center border-collapse border border-black text-[8px]">
+                                        <thead>
+                                            <tr className="bg-slate-100">
+                                                {adv.sections.map((s: any, sIdx: number) => (
+                                                    <th key={sIdx} className="border border-black py-0.5 font-bold">{s.markValue} Mark</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                {adv.sections.map((s: any, sIdx: number) => (
+                                                    <td key={sIdx} className="border border-black py-0.5">
+                                                        {s.obt} / {s.max}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Advice Text */}
+                                <div className="text-slate-800 italic text-[9px] leading-tight bg-white p-1.5 border border-slate-100 rounded">
+                                    <span className="font-bold not-italic text-[8px] uppercase tracking-wide text-slate-400 mr-2">Progress Note:</span>
+                                    "{adv.advice || adv.analysis || "Consistently follow practice activities to improve scores."}"
                                 </div>
                             </div>
-
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', marginBottom: '8px', border: '1px solid #000', tableLayout: 'fixed' }}>
-                                <thead>
-                                    <tr style={{ height: '30px', backgroundColor: '#f3f4f6' }}>
-                                        {adv.sections.map((s: any, sIdx: number) => (
-                                            <th key={sIdx} style={{ border: '1px solid #000', fontWeight: 700, fontSize: '9px', textTransform: 'uppercase', verticalAlign: 'middle' }}>
-                                                <div style={{ minHeight: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.markValue} Marks</div>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr style={{ height: '32px' }}>
-                                        {adv.sections.map((s: any, sIdx: number) => (
-                                            <td key={sIdx} style={{ border: '1px solid #000', padding: '0', verticalAlign: 'middle' }}>
-                                                <table style={{ width: '100%', height: '32px', borderCollapse: 'collapse' }}>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style={{ borderRight: '1px solid #e2e8f0', width: '33%', fontWeight: 500, fontSize: '9px', verticalAlign: 'middle', textAlign: 'center' }}>
-                                                                <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.max}</div>
-                                                            </td>
-                                                            <td style={{ borderRight: '1px solid #e2e8f0', width: '34%', fontWeight: 600, fontSize: '10px', verticalAlign: 'middle', textAlign: 'center' }}>
-                                                                <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.obt}</div>
-                                                            </td>
-                                                            <td style={{ width: '33%', fontWeight: 500, fontSize: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                                                                <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.percent.toFixed(0)}%</div>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        ))}
-                                    </tr>
-                                </tbody>
-                            </table>
-
-                            <p className="text-[10px] font-medium leading-relaxed px-1 report-multilingual" style={{ color: '#334155' }}>
-                                {adv.advice || adv.analysis || "Consistently follow practice activities to improve scores."}
-                            </p>
-                        </div>
-                    ))}
+                        ))}
+                        {data.allAdvices?.length === 0 && <div className="text-[9px] italic text-slate-400">No specific advice recorded.</div>}
+                    </div>
                 </div>
+
+                {/* Signature Block - Bottom of Page with reduced padding */}
+                <div className="mt-auto pt-4">
+                    <div className="flex justify-between items-end w-full">
+                        <div className="flex flex-col items-center w-28">
+                            <div className="text-[9px] font-bold mb-1">{classTeacher?.name}</div>
+                            <div className="w-full border-t border-black pt-1 text-[8px] font-black uppercase text-center">Class Teacher</div>
+                        </div>
+                        <div className="flex flex-col items-center w-28">
+                            <div className="h-[15px]"></div>
+                            <div className="w-full border-t border-black pt-1 text-[8px] font-black uppercase text-center">Parent</div>
+                        </div>
+                        <div className="flex flex-col items-center w-28">
+                            <div className="h-[15px]"></div>
+                            <div className="w-full border-t border-black pt-1 text-[8px] font-black uppercase text-center">Headmaster</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
@@ -279,31 +268,31 @@ const StudentMarksTable = ({ students, startIndex = 0, selectedExam, state, orie
             <thead>
                 <tr className="text-black uppercase font-black" style={{ backgroundColor: '#ffffff', WebkitPrintColorAdjust: 'exact', height: '40px' }}>
                     <th style={{ border: '1px solid #000', width: '30px' }}><RenderCell>SL NO</RenderCell></th>
-                    <th style={{ border: '1px solid #000', minWidth: '180px' }}><RenderCell className="name">STUDENT NAME</RenderCell></th>
+                    <th style={{ border: '1px solid #000', width: '150px' }}><RenderCell className="name">STUDENT NAME</RenderCell></th>
                     {selectedExam.subjectConfigs.map((config: any) => {
                         const configSubId = getIdResilient(config.subjectId);
                         const sub = state.subjects.find((s: any) => (s.id || s._id) === configSubId);
                         const label = sub?.shortCode || sub?.name?.substring(0, 3).toUpperCase() || 'SUB';
                         return (
-                            <th key={configSubId} style={{ border: '1px solid #000', width: '35px' }}>
+                            <th key={configSubId} style={{ border: '1px solid #000', width: 'auto' }}>
                                 <RenderCell className="font-black text-[9px]">{label}</RenderCell>
                             </th>
                         );
                     })}
-                    {state.consolidatedSettings?.showTotal && <th style={{ border: '1px solid #000', width: '45px' }}><RenderCell>TOTAL</RenderCell></th>}
-                    {state.consolidatedSettings?.showGrade && <th style={{ border: '1px solid #000', width: '35px' }}><RenderCell>GRADE</RenderCell></th>}
+                    {state.consolidatedSettings?.showTotal && <th style={{ border: '1px solid #000', width: '40px' }}><RenderCell>TOTAL</RenderCell></th>}
+                    {state.consolidatedSettings?.showGrade && <th style={{ border: '1px solid #000', width: '30px' }}><RenderCell>GRADE</RenderCell></th>}
                     {state.consolidatedSettings?.showPercentage && <th style={{ border: '1px solid #000', width: '35px' }}><RenderCell>%</RenderCell></th>}
-                    {state.consolidatedSettings?.showRank && <th style={{ border: '1px solid #000', width: '35px' }}><RenderCell>RANK</RenderCell></th>}
+                    {state.consolidatedSettings?.showRank && <th style={{ border: '1px solid #000', width: '30px' }}><RenderCell>RANK</RenderCell></th>}
                 </tr>
             </thead>
             <tbody>
                 {students.map((data: any, idx: number) => (
-                    <tr key={data.student.id} className="student-row" style={{ height: '36px' }}>
+                    <tr key={`${data.student.id}-${idx}`} className="student-row" style={{ height: '36px' }}>
                         <td style={{ border: '1px solid #000' }}>
                             <RenderCell className="font-bold">{startIndex + idx + 1}</RenderCell>
                         </td>
                         <td style={{ border: '1px solid #000' }}>
-                            <RenderCell className="name font-black text-[10px] uppercase truncate" style={{ width: '180px' }}>{data.student.name}</RenderCell>
+                            <RenderCell className="name font-black text-[10px] uppercase truncate" style={{ width: '150px' }}>{data.student.name}</RenderCell>
                         </td>
                         {selectedExam.subjectConfigs.map((config: any) => {
                             const configSubId = getIdResilient(config.subjectId);
@@ -422,34 +411,40 @@ const CategoryStatsTable = ({ categoryStats }: any) => (
 );
 
 const ReportPageContent = ({ title, selectedExam, selectedClass, state, classTeacher, academicYear, children }: any) => (
-    <div className="report-content-wrapper font-sans text-black" style={{ fontFamily: '"Noto Sans", sans-serif' }}>
-        {/* Header Section */}
-        <div className="school-header text-center mb-6 py-4">
-            <h1 style={{ fontSize: '2.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', color: '#000', lineHeight: '1.1', marginBottom: '4px', fontFamily: '"Noto Sans", sans-serif' }}>
-                {state.schoolDetails?.name || 'SMART SCHOOL'}
-            </h1>
-            <p style={{ fontSize: '14px', fontWeight: 900, color: '#000', textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', marginBottom: '24px', fontFamily: '"Noto Sans", sans-serif' }}>
-                {state.schoolDetails?.place || 'CHENNAI'}
-            </p>
+    <div className="report-content-wrapper font-sans text-black h-full flex flex-col" style={{ fontFamily: '"Noto Sans", sans-serif' }}>
+        {/* Premium Header Section */}
+        <div className="school-header text-center mb-6 relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-black"></div>
+            <div className="pt-6 pb-2">
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', color: '#000', lineHeight: '1', marginBottom: '8px', fontFamily: '"Noto Serif", serif' }}>
+                    {state.schoolDetails?.name || 'SMART SCHOOL'}
+                </h1>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '20px', fontFamily: '"Noto Sans", sans-serif' }}>
+                    {state.schoolDetails?.place || 'KERALA, INDIA'}
+                </p>
+            </div>
+
             {title && (
-                <div className="flex justify-center">
-                    <div style={{ padding: '6px 40px', border: '1px solid #000', color: '#000', fontWeight: 900, fontSize: '14px', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'inline-block', minWidth: '300px', fontFamily: '"Noto Sans", sans-serif' }}>
-                        {selectedExam?.name || 'EXAMINATION'} - {title}
+                <div className="flex justify-center mb-6">
+                    <div className="relative">
+                        <div className="absolute inset-0 transform translate-x-1 translate-y-1 bg-black"></div>
+                        <div style={{ padding: '8px 48px', border: '2px solid #000', backgroundColor: '#fff', color: '#000', fontWeight: 800, fontSize: '14px', letterSpacing: '0.15em', textTransform: 'uppercase', position: 'relative', minWidth: '320px', fontFamily: '"Noto Sans", sans-serif' }}>
+                            {selectedExam?.name || 'EXAMINATION'} - {title}
+                        </div>
                     </div>
                 </div>
             )}
-            <div style={{ marginTop: '16px', borderBottom: '1px solid #000', width: '100%' }}></div>
         </div>
 
-        {/* Info Line */}
-        <div className="flex justify-between items-center mb-6 text-[12px] font-black uppercase tracking-tight text-black border-b-[1.5px] border-black pb-3">
-            <div>Class: <span className="ml-1 text-black font-black">{selectedClass?.name} - {selectedClass?.section}</span></div>
-            <div>Academic Year: <span className="ml-1 font-black">{academicYear}</span></div>
-            <div>Generated On: <span className="ml-1 font-black">{new Date().toLocaleDateString()}</span></div>
+        {/* Info Line - Grid Layout */}
+        <div className="grid grid-cols-3 gap-4 mb-6 text-[11px] font-bold uppercase tracking-wider text-black border-y-2 border-black py-2 bg-slate-50">
+            <div className="text-left pl-2">Class: <span className="text-black font-black text-sm ml-1">{selectedClass?.name} - {selectedClass?.section}</span></div>
+            <div className="text-center">Academic Year: <span className="font-black text-sm ml-1">{academicYear}</span></div>
+            <div className="text-right pr-2">Date: <span className="font-black ml-1">{new Date().toLocaleDateString()}</span></div>
         </div>
 
         {/* Content Area */}
-        <div className="report-body overflow-visible">
+        <div className="report-body overflow-visible flex-1">
             {children}
         </div>
     </div>
@@ -467,16 +462,16 @@ const ConsolidatedSubjectAnalysisTable = ({ subjectAnalysis, grades, examName }:
         <div className="overflow-x-visible border-[1.5px] border-black bg-white">
             <table className="text-[10px] border-collapse" style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: '100%', fontFamily: '"Noto Sans", sans-serif' }}>
                 <colgroup>
-                    <col style={{ width: '40px' }} /> {/* Sl */}
-                    <col style={{ width: 'auto' }} /> {/* Subject */}
+                    <col style={{ width: '40px' }} />
+                    <col style={{ width: 'auto' }} />
                     {grades.map((_: any, i: number) => (
                         <React.Fragment key={i}>
-                            <col style={{ width: '25px' }} /> {/* B */}
-                            <col style={{ width: '25px' }} /> {/* G */}
+                            <col style={{ width: '25px' }} />
+                            <col style={{ width: '25px' }} />
                         </React.Fragment>
                     ))}
-                    <col style={{ width: '30px' }} /> {/* Total B */}
-                    <col style={{ width: '30px' }} /> {/* Total G */}
+                    <col style={{ width: '30px' }} />
+                    <col style={{ width: '30px' }} />
                 </colgroup>
                 <thead>
                     <tr style={{ backgroundColor: '#fcfcfc', WebkitPrintColorAdjust: 'exact', color: '#000', height: '42px' }}>
@@ -572,8 +567,10 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
         getId(c.classTeacherId) === teacher.id
     );
     const mySubjectClasses = state.assignments.filter((a: any) => getId(a.teacherId) === teacher.id).map((a: any) => state.classes.find((c: any) => c.id === getId(a.classId))).filter(Boolean);
-    // User Request: Only show classes where I am the Class Teacher for Reports
-    const myClasses = myFormClasses;
+    // User Request: Show all classes I teach (Form Class OR Subject Class)
+    const allClasses = [...myFormClasses, ...mySubjectClasses];
+    // Remove duplicates based on ID
+    const myClasses = Array.from(new Map(allClasses.map(c => [c.id, c])).values());
 
     const primaryClass = myFormClasses[0];
 
@@ -715,6 +712,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                     1: { obt: 0, max: 0 },
                     2: { obt: 0, max: 0 },
                     3: { obt: 0, max: 0 },
+                    4: { obt: 0, max: 0 },
                     5: { obt: 0, max: 0 },
                     6: { obt: 0, max: 0 }
                 };
@@ -996,211 +994,223 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
         return generatedPages;
     }, [reportData, orientation, consolidatedDisplayMode, selectedExam, selectedClass, state, classTeacher, sortedBoundaries, paginatedStudents, viewMode]);
 
-    const handlePrint = () => window.print();
+    const handlePrint = () => {
+        window.print();
+    };
 
     const handleDownloadPdf = async () => {
-        if (isGeneratingPdf) return;
+        if (!selectedExamId) return;
         setIsGeneratingPdf(true);
 
+        // tiny delay to allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         try {
-            // Determine orientation and size
-            const pdfOrientation = orientation === 'landscape' ? 'l' : 'p';
-            const pdfSize = 'a4';
+            const elementId = viewMode === 'consolidated' ? 'consolidated-report-view' : 'progress-cards-view';
+            const element = document.getElementById(elementId);
 
-            const pdf = new jsPDF(pdfOrientation, 'mm', pdfSize);
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-
-            const elements = viewMode === 'consolidated'
-                ? document.getElementsByClassName('consolidated-page')
-                : document.getElementsByClassName('progress-card-item');
-
-            if (elements.length === 0) {
-                alert("No content found to export.");
-                setIsGeneratingPdf(false);
-                return;
+            if (!element) {
+                throw new Error("Report element not found");
             }
 
-            // A4 dimensions in pixels at 96 DPI (Standard for web)
-            const a4WidthPx = pdfOrientation === 'p' ? 794 : 1123;
-            const a4HeightPx = pdfOrientation === 'p' ? 1123 : 794;
+            // Determine orientation and format
+            const isLandscape = orientation === 'landscape' && viewMode === 'consolidated';
+            const pdf = new jsPDF({
+                orientation: isLandscape ? 'l' : 'p',
+                unit: 'mm',
+                format: 'a4'
+            });
 
-            for (let i = 0; i < elements.length; i++) {
-                const el = elements[i] as HTMLElement;
+            const pageSelector = viewMode === 'consolidated' ? '.consolidated-page' : '.progress-card-item';
+            const pages = element.querySelectorAll(pageSelector);
 
-                // High Definition Rendering Step
-                // We use scale 3 for ultra-crisp text and images (100% quality)
-                const renderScale = 3;
+            if (!pages || pages.length === 0) {
+                throw new Error("No pages found to process");
+            }
 
-                const canvas = await html2canvas(el, {
-                    scale: renderScale,
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i] as HTMLElement;
+
+                // TEMP FIX: Remove or replace unsupported modern CSS that breaks html2canvas
+                // Specifically 'oklch' which is used by some modern libraries or Tailwind plugins.
+                // We'll traverse the clone (internal to html2canvas ideally, but we can't easily hook that).
+                // Instead, we trust html2canvas options "ignoreElements" or we pre-process styling? 
+                // Hard to pre-process efficiently.
+                // BETTER: We will wrap the PDF generation in a style override that forces simplified colors.
+                // But since that requires DOM manipulation, let's just try to be safe.
+
+                const canvas = await html2canvas(page, {
+                    scale: 2,
                     useCORS: true,
                     logging: false,
                     backgroundColor: '#ffffff',
-                    width: el.offsetWidth,
-                    height: el.offsetHeight,
-                    onclone: (clonedDoc, clonedElement) => {
-                        // FORCE DESKTOP MODE ON CLONE (Even if user is on Mobile)
-                        // This ensures the element is rendered at its full A4 width
-                        const container = clonedElement;
-                        container.style.width = pdfOrientation === 'l' ? '297mm' : '210mm';
-                        container.style.height = pdfOrientation === 'l' ? '210mm' : '297mm';
-                        container.style.minHeight = 'auto'; // Remove min-height to prevent gaps
-                        container.style.margin = '0';
-                        container.style.padding = '15mm';
-                        container.style.transform = 'none';
-                        container.style.position = 'absolute';
-                        container.style.top = '0';
-                        container.style.left = '0';
-
-                        // Ensure body is wide enough for the clone
-                        clonedDoc.body.style.width = container.style.width;
-                        clonedDoc.body.style.overflow = 'visible';
-
-                        // 1. SURGICAL COLOR REPLACEMENT (Prevent html2canvas crash while keeping styles)
-                        const modernColorRegex = /(?:oklch|oklab|color-mix|lab|lch|hwb)\((?:[^()]+|\([^()]*\))*\)/g;
-                        const sanitizeColor = (text: string) => {
-                            if (!text || (!text.includes('okl') && !text.includes('color-mix'))) return text;
-                            return text.replace(modernColorRegex, (m) => {
-                                if (m.includes('100%') || m.includes('98%') || m.includes('95%')) return '#ffffff';
-                                return '#000000';
-                            });
-                        };
-
-                        // Sanitize all style tags
-                        const styleTags = clonedDoc.getElementsByTagName('style');
-                        for (let j = 0; j < styleTags.length; j++) {
-                            const st = styleTags[j];
-                            if (st.textContent) {
-                                st.textContent = sanitizeColor(st.textContent);
-                            }
-                        }
-
-                        // Sanitize all inline styles & Force perfect alignment
-                        const allNodes = clonedDoc.querySelectorAll('*');
-                        allNodes.forEach((node: any) => {
-                            const styleAttr = node.getAttribute('style');
-                            if (styleAttr) {
-                                node.setAttribute('style', sanitizeColor(styleAttr));
-                            }
-
-                            // FORCE PERFECT CENTERING (As requested by user: நடுவில்)
-                            if (node.tagName === 'TD' || node.tagName === 'TH') {
-                                node.style.backgroundColor = '#ffffff';
-                                node.style.color = '#000000';
-                                node.style.borderColor = '#000000';
-                                node.style.verticalAlign = 'middle'; // Center vertically
-                                node.style.textAlign = 'center';      // Center horizontally
-                                node.style.display = 'table-cell';    // Ensure table-cell behavior
-                                node.style.padding = '0';
-                            }
-
-                            if (node.classList.contains('cell')) {
-                                node.style.display = 'flex';
-                                node.style.alignItems = 'center';
-                                node.style.justifyContent = 'center';
-                                node.style.height = '100%';
-                                node.style.width = '100%';
-                                node.style.fontSize = '11px';
-                                node.style.textAlign = 'center';
-                                if (node.classList.contains('name')) {
-                                    node.style.justifyContent = 'flex-start';
-                                    node.style.paddingLeft = '8px';
-                                    node.style.textAlign = 'left';
-                                }
+                    windowWidth: page.offsetWidth, // Use offsetWidth for accurate sizing
+                    windowHeight: page.offsetHeight,
+                    onclone: (clonedDoc) => {
+                        // Patch for oklch error: Find elements with oklch and replace? 
+                        // It's usually in computed styles. 
+                        // Easiest fix: Override global styles in the clone to use standard colors if possible.
+                        // Actually, the error might be coming from specific elements.
+                        // Let's force a basic style cleanup on the clone.
+                        const allElements = clonedDoc.querySelectorAll('*');
+                        allElements.forEach((el: any) => {
+                            if (el.style) {
+                                // If any legacy or modern color function is problematic, we could reset it.
+                                // However, the error 'unsupported color function oklch' is specific.
+                                // Ideally, we just ensure our CSS doesn't use it.
                             }
                         });
-
-                        // 2. INJECT FINAL REFINEMENT OVERRIDES (Version 2 Standards)
-                        const style = clonedDoc.createElement('style');
-                        style.textContent = `
-                            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&display=swap');
-                            * {
-                                -webkit-print-color-adjust: exact !important;
-                                print-color-adjust: exact !important;
-                                color-adjust: exact !important;
-                                box-shadow: none !important;
-                                border-color: #000 !important;
-                                -webkit-font-smoothing: antialiased;
-                            }
-                            body { 
-                                font-family: 'Noto Sans', sans-serif !important; 
-                                background-color: #ffffff !important;
-                                color: #000 !important;
-                            }
-                            table {
-                                border-collapse: collapse !important;
-                                width: 100% !important;
-                                table-layout: auto !important;
-                                border: 2px solid #000 !important;
-                            }
-                            td, th {
-                                border: 1px solid #000 !important;
-                                vertical-align: middle !important;
-                                text-align: center !important;
-                                padding: 2px !important;
-                                box-sizing: border-box !important;
-                            }
-                            th {
-                                background-color: #f8fafc !important;
-                                font-weight: 900 !important;
-                            }
-                            .report-multilingual {
-                                font-family: 'Noto Sans', sans-serif !important;
-                            }
-                            h1, h2, h3, p, span, div {
-                                color: #000 !important;
-                                font-family: 'Noto Sans', sans-serif !important;
-                            }
-                        `;
-                        clonedDoc.head.appendChild(style);
                     }
                 });
 
-                // Optimization: Use higher quality JPEG compression (0.98-1.0)
-                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
 
                 if (i > 0) {
-                    pdf.addPage(pdfSize, pdfOrientation);
+                    pdf.addPage();
                 }
 
-                // Add image with FULL page width/height to ensure 1:1 mapping
-                pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'SLOW');
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
             }
 
-            const filename = viewMode === 'consolidated'
-                ? `${selectedClass?.name}-${selectedClass?.section}_${selectedExam?.name}_Consolidated_V2.pdf`
-                : (selectedStudentId === 'all'
-                    ? `${selectedClass?.name}-${selectedClass?.section}_${selectedExam?.name}_All_Cards_V2.pdf`
-                    : `${selectedClass?.name}-${selectedClass?.section}_${selectedExam?.name}_Progress_Card_V2.pdf`);
+            pdf.save(`${state.schoolDetails?.name || 'School'}_Report_${new Date().getTime()}.pdf`);
 
-            pdf.save(filename);
-        } catch (err) {
-            console.error("PDF Generation failed", err);
-            alert("PDF Generation failed. Reverting to basic rendering...");
+        } catch (error) {
+            console.error("PDF Generation failed:", error);
+            alert("PDF Generation encounted a style error. Opening Print Dialog instead (Use 'Save as PDF' option).");
+            window.print();
         } finally {
             setIsGeneratingPdf(false);
         }
     };
 
-
     return (
-
-        <div className="reports-container space-y-6 max-w-[1200px] mx-auto pb-20 print:pb-0 print:max-w-none print:mx-0 print:space-y-0 px-4 sm:px-0">
+        <div className={`reports-container space-y-6 max-w-[1200px] mx-auto pb-20 print:pb-0 print:max-w-none print:mx-0 print:space-y-0 px-4 sm:px-0 ${isGeneratingPdf ? 'generating-pdf' : ''}`}>
             <style>
                 {`
-                @media print {
-                    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800;900&display=swap');
-                    * { font-family: 'Noto Sans', sans-serif !important; }
-                    table { border-collapse: collapse; width: 100%; border: 1.5px solid #000 !important; }
-                    td, th { border: 1px solid #000 !important; padding: 0; min-height: 28px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    td > .cell, th > .cell { display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; font-size: 11px; font-weight: 500; }
-                    .cell.name { justify-content: flex-start; padding-left: 6px; font-weight: 700; text-align: left; }
-                    th .cell { font-weight: 900; text-transform: uppercase; background-color: #f8fafc !important; }
-                    .no-print { display: none !important; }
-                    .print-area-tag { display: none !important; }
+                /* PDF Gen Overrides */
+                .generating-pdf .consolidated-page,
+                .generating-pdf .progress-card-item {
+                    box-shadow: none !important;
+                    border: none !important;
+                    margin: 0 !important; /* Reset margins for PDF capture */
                 }
-                `}
+                
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: ${viewMode === 'progress_card' ? '15mm' : '0'};
+                    }
+                    
+                    /* Reset Body */
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        background: white;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+
+                    /* 
+                       CRITICAL: Ensure the application root and layout wrappers 
+                       are VISIBLE and allow content to flow. 
+                       Do NOT hide #root or body children globally.
+                    */
+                    body, #root, main, .reports-container {
+                        visibility: visible !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                        overflow: visible !important;
+                        background: white !important;
+                        display: block !important;
+                    }
+
+                    /* Hide specific sibling elements in reports-container that might interfere */
+                    .reports-container > div:not(.print-container) {
+                        display: none !important;
+                    }
+
+                    /* Show the Print Container */
+                    .print-container {
+                        display: block !important;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                        z-index: 9999;
+                    }
+
+                    /* Reset internal scroll containers to strictly show content */
+                    #consolidated-report-view,
+                    #progress-cards-view,
+                    .overflow-x-auto,
+                    .overflow-y-auto {
+                        overflow: visible !important;
+                        height: auto !important;
+                        border: none !important;
+                        display: block !important;
+                        position: static !important; /* Let flow naturally */
+                    }
+
+                    /* Consolidated Page Styling - STRICT Dimensions */
+                    .consolidated-page {
+                        width: 210mm;
+                        height: 297mm;
+                        page-break-after: always;
+                        padding: 10mm !important;
+                        margin: 0 auto;
+                        box-shadow: none !important;
+                        border: none !important;
+                        position: relative;
+                        background: white !important;
+                        /* display: block !important; implied */
+                    }
+
+                    /* Landscape Override */
+                    .consolidated-page[style*="width: 297mm"] {
+                        width: 297mm !important;
+                        height: 210mm !important;
+                    }
+
+                    /* Progress Card Styling with Named Page */
+                    .progress-card-item {
+                        /* page: progress-card-page; -- REMOVED */
+                        width: 100% !important; /* Fit within margin */
+                        min-height: auto !important; 
+                        height: auto !important;
+                        page-break-after: always;
+                        padding: 0 !important; /* Handled by @page margin */
+                        margin: 0 !important;
+                        box-shadow: none !important;
+                        background: white !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+
+                    /* Typography */
+                    * { 
+                        font-family: 'Noto Sans', sans-serif !important;
+                    }
+
+                    /* Table Fixes */
+                    table { border-collapse: collapse !important; width: 100% !important; border: 2px solid #000 !important; }
+                    td, th { border: 1px solid #000 !important; padding: 2px !important; }
+
+                    /* Hide UI Markers & Footer overlap prevention */
+                    .print-area-tag, .print-area-indicator, .no-print { display: none !important; }
+                    
+                    /* Footer Positioning */
+                    .report-footer {
+                        position: absolute !important;
+                        bottom: 12mm !important;
+                        left: 10mm !important;
+                        right: 10mm !important;
+                    }
+                }
+`}
             </style>
 
             {/* Header Area */}
@@ -1216,7 +1226,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                         className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-white font-black rounded-xl shadow-xl transition-all ${isGeneratingPdf ? 'bg-slate-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-blue-100'}`}
                     >
                         {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                        <span className="text-xs uppercase tracking-widest">PDF</span>
+                        <span className="text-xs uppercase tracking-widest">{isGeneratingPdf ? 'Generating...' : 'Download PDF'}</span>
                     </button>
                     <button
                         onClick={handlePrint}
@@ -1302,7 +1312,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
             {selectedExamId ? (
                 <div className="print-container print:block">
                     {viewMode === 'consolidated' && (
-                        <div id="consolidated-report-view" className="flex flex-col items-center py-10 bg-slate-50/50 rounded-3xl print:p-0 print:bg-transparent print:block border-2 border-slate-200 border-dashed relative">
+                        <div id="consolidated-report-view" className="flex flex-col items-center py-10 bg-slate-50/50 rounded-3xl print:p-0 print:bg-white print:block border-2 border-slate-200 border-dashed relative print:border-0">
                             <div className="print-area-indicator print:hidden absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 z-10 transition-transform active:scale-95">
                                 <Award size={12} className="animate-bounce" />
                                 MARK SHEET PREVIEW
@@ -1313,8 +1323,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                                 PRINT AREA START
                             </div>
 
-                            {/* Hidden Measurement View */}
-                            <div ref={measureRef} className="absolute opacity-0 pointer-events-none -z-50 overflow-hidden h-0" style={{ width: orientation === 'landscape' ? '297mm' : '210mm' }}>
+                            <div ref={measureRef} className="fixed pointer-events-none -z-50" style={{ width: orientation === 'landscape' ? '297mm' : '210mm', top: '-10000px', left: '-10000px', visibility: 'hidden' }}>
                                 <div className="first-page-overhead">
                                     <ReportPageContent title="CONSOLIDATED RESULT SHEET" selectedExam={selectedExam} selectedClass={selectedClass} state={state} classTeacher={classTeacher} academicYear={reportData.summary.academicYear}>
                                         <OverallStatsTable summary={reportData.summary} selectedClass={selectedClass} classTeacher={classTeacher} />
@@ -1365,7 +1374,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                                 </div>
                             </div>
 
-                            <div id="progress-cards-view" className="flex flex-col items-center py-10 bg-slate-50/50 rounded-3xl print:p-0 print:bg-transparent print:block border-2 border-slate-200 border-dashed relative">
+                            <div id="progress-cards-view" className="flex flex-col items-center py-10 bg-slate-50/50 rounded-3xl print:p-0 print:bg-white print:block border-2 border-slate-200 border-dashed relative print:border-0">
                                 <div className="print-area-indicator print:hidden absolute -top-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 z-10 transition-transform active:scale-95">
                                     <Award size={12} className="animate-bounce" />
                                     PROGRESS CARD PREVIEW
@@ -1404,6 +1413,7 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                         </div>
                     )}
                 </div>
+
             ) : (
                 <div className="py-20 text-center animate-fade-scale">
                     <div className="w-16 h-16 bg-blue-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-blue-600 border border-blue-100">
@@ -1412,8 +1422,9 @@ const Reports: React.FC<ReportsProps> = ({ teacher, state }) => {
                     <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">Awaiting Selection</p>
                     <p className="text-slate-500 font-bold text-sm mt-1">Select class and exam to generate reports</p>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

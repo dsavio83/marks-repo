@@ -68,8 +68,8 @@ const App: React.FC = () => {
         assignments: Array.isArray(assignmentsRes.data) ? assignmentsRes.data : prev.assignments,
         attendance: Array.isArray(attendanceRes.data) ? attendanceRes.data : prev.attendance,
         gradeSchemes: Array.isArray(gradesRes.data) ? gradesRes.data : prev.gradeSchemes,
-        schoolDetails: (schoolRes.data && typeof schoolRes.data === 'object' && Object.keys(schoolRes.data).length > 0) 
-          ? schoolRes.data 
+        schoolDetails: (schoolRes.data && typeof schoolRes.data === 'object' && Object.keys(schoolRes.data).length > 0)
+          ? schoolRes.data
           : prev.schoolDetails
       }));
 
@@ -170,9 +170,9 @@ const App: React.FC = () => {
 
           {currentUser.role === UserRole.STUDENT && (
             <>
-              <Route path="/student" element={<StudentDashboard student={currentUser} state={appState} view="dashboard" />} />
-              <Route path="/student/courses" element={<StudentDashboard student={currentUser} state={appState} view="courses" />} />
-              <Route path="/student/grades" element={<StudentDashboard student={currentUser} state={appState} view="grades" />} />
+              <Route path="/student" element={<StudentDashboard student={currentUser} state={appState} setState={setAppState} view="dashboard" />} />
+              <Route path="/student/courses" element={<StudentDashboard student={currentUser} state={appState} setState={setAppState} view="courses" />} />
+              <Route path="/student/grades" element={<StudentDashboard student={currentUser} state={appState} setState={setAppState} view="grades" />} />
               <Route path="/student/submit-marks" element={<SectionMarkEntry user={currentUser} state={appState} setState={setAppState} />} />
               <Route path="*" element={<Navigate to="/student" />} />
             </>

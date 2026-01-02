@@ -91,6 +91,7 @@ export const markAPI = {
   getByStudent: (studentId) => api.get('/marks', { params: { studentId } }),
   getByStudentAndExam: (studentId, examId) => api.get('/marks', { params: { studentId, examId } }),
   create: (data) => api.post('/marks', data),
+  bulkCreate: (data) => api.post('/marks/bulk', data),
   update: (id, data) => api.put(`/marks/${id}`, data),
   delete: (id) => api.delete(`/marks/${id}`),
   analyze: (id) => api.post(`/marks/${id}/analyze`),

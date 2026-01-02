@@ -1,17 +1,29 @@
 
 import React from 'react';
-import { Book, Calculator, FlaskConical, Globe, Palette, Languages, Trophy, Music } from 'lucide-react';
+import { Book, Calculator, FlaskConical, Globe, Palette, Languages, Trophy, Music, Monitor, Cpu } from 'lucide-react';
 import { User, UserRole, Subject, ClassRoom, SubjectAssignment } from './types';
 
 export const LEARNING_ICONS = [
-  { icon: <Book className="w-8 h-8" />, label: "English", color: "text-blue-400" },
+  { icon: <Languages className="w-8 h-8" />, label: "English", color: "text-blue-400" },
+  { icon: <Languages className="w-8 h-8" />, label: "Language 1", color: "text-indigo-500" },
+  { icon: <Languages className="w-8 h-8" />, label: "Language 2", color: "text-pink-500" },
   { icon: <Calculator className="w-8 h-8" />, label: "Math", color: "text-green-400" },
   { icon: <FlaskConical className="w-8 h-8" />, label: "Science", color: "text-purple-400" },
   { icon: <Globe className="w-8 h-8" />, label: "Social", color: "text-orange-400" },
   { icon: <Palette className="w-8 h-8" />, label: "Art", color: "text-pink-400" },
   { icon: <Languages className="w-8 h-8" />, label: "Tamil", color: "text-indigo-400" },
+  { icon: <Languages className="w-8 h-8" />, label: "Malayalam", color: "text-emerald-400" },
+  { icon: <Languages className="w-8 h-8" />, label: "Hindi", color: "text-amber-400" },
+  { icon: <Languages className="w-8 h-8" />, label: "Arabic", color: "text-green-500" },
   { icon: <Trophy className="w-8 h-8" />, label: "Sports", color: "text-yellow-400" },
-  { icon: <Music className="w-8 h-8" />, label: "Music", color: "text-red-400" },
+  { icon: <Music className="w-8 h-8" />, label: "Music", color: "text-rose-400" },
+  { icon: <FlaskConical className="w-8 h-8" />, label: "Physics", color: "text-cyan-400" },
+  { icon: <FlaskConical className="w-8 h-8" />, label: "Chemistry", color: "text-fuchsia-400" },
+  { icon: <FlaskConical className="w-8 h-8" />, label: "Biology", color: "text-lime-400" },
+  { icon: <Book className="w-8 h-8" />, label: "History", color: "text-stone-400" },
+  { icon: <Globe className="w-8 h-8" />, label: "Geography", color: "text-teal-400" },
+  { icon: <Monitor className="w-8 h-8" />, label: "Computer", color: "text-slate-400" },
+  { icon: <Cpu className="w-8 h-8" />, label: "IT", color: "text-violet-400" },
 ];
 
 export const SUBJECT_FACTS = [
