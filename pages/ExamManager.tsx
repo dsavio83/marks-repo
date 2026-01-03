@@ -214,8 +214,8 @@ const ExamManager: React.FC<ExamManagerProps> = ({ teacher, state, setState }) =
                   <BookOpen size={24} />
                 </div>
                 <div className="flex space-x-2">
-                  <button onClick={() => handleOpenModal(exam)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-xl"><Edit2 size={16} /></button>
-                  <button onClick={() => deleteExam(exam.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-xl"><Trash2 size={16} /></button>
+                  <button onClick={() => handleOpenModal(exam)} className="p-2 bg-slate-50 rounded-xl text-blue-500 hover:bg-blue-100"><Edit2 size={16} /></button>
+                  <button onClick={() => deleteExam(exam.id)} className="p-2 bg-slate-50 rounded-xl text-red-500 hover:bg-red-100"><Trash2 size={16} /></button>
                 </div>
               </div>
               <h3 className="text-xl font-black text-slate-800 mb-1">{exam.name}</h3>

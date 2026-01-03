@@ -1610,7 +1610,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                                     <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-bold text-xl">
                                                         {c.name.replace('-', '')}
                                                     </div>
-                                                    <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex space-x-2">
                                                         <button onClick={() => { setEditingItem(c); setShowModal(true); }} className="p-2 bg-slate-50 rounded-xl text-blue-500 hover:bg-blue-100"><Edit2 size={16} /></button>
                                                         <button onClick={() => deleteItem('classes', c.id)} className="p-2 bg-slate-50 rounded-xl text-red-500 hover:bg-red-100"><Trash2 size={16} /></button>
                                                     </div>
@@ -1653,7 +1653,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                 <h3 className="text-lg font-black text-slate-800 mb-1">{s.name}</h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{s.shortCode || 'N/A'}</p>
                             </div>
-                            <div className="flex justify-end mt-4 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                            <div className="flex justify-end mt-4 gap-2">
                                 <button onClick={() => { setEditingItem(s); setShowModal(true); }} className="p-2 bg-slate-50 rounded-xl text-blue-500 hover:bg-blue-100"><Edit2 size={16} /></button>
                                 <button onClick={() => deleteItem('subjects', s.id)} className="p-2 bg-slate-50 rounded-xl text-red-500 hover:bg-red-100"><Trash2 size={16} /></button>
                             </div>
