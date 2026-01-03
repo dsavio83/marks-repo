@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, MarkRecord, GradeScheme, Subject, Exam } from '../types';
+import { User, Subject } from '../types';
 import {
     Award, Book, Calendar, MapPin, User as UserIcon,
-    TrendingUp, Clock, CheckCircle2, AlertCircle,
-    ChevronRight, BookOpen, GraduationCap, LayoutDashboard,
-    Percent, FileText, Star, Settings, X, Save, Phone, Mail,
-    Filter
+    TrendingUp, CheckCircle2, AlertCircle,
+    ChevronRight, Percent, FileText, Star, Settings, X, Save, Phone, Mail,
+    Filter, Home, GraduationCap, Layout as LayoutIcon, BrainCircuit,
+    ArrowUpRight, Sparkles, ChevronLeft, BookOpen, Droplets, CreditCard, Palette
 } from 'lucide-react';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { LEARNING_ICONS } from '../constants';
 import { userAPI } from '../services/api';
@@ -20,9 +20,17 @@ interface StudentDashboardProps {
     view: 'dashboard' | 'courses' | 'grades';
 }
 
-const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, setState, view }) => {
-    const [selectedExamId, setSelectedExamId] = useState<string>('all');
+const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, setState, view: initialView }) => {
+    // Navigation State
+    const [activeTab, setActiveTab] = useState<string>('dashboard');
+
+    useEffect(() => {
+        if (initialView) setActiveTab(initialView);
+    }, [initialView]);
+
+    const [selectedExamId, setSelectedExamId] = useState<string>('');
     const [showBioModal, setShowBioModal] = useState(false);
+    const [selectedAiAnalysis, setSelectedAiAnalysis] = useState<any | null>(null);
 
     // Bio Form State
     const [bioForm, setBioForm] = useState({
@@ -33,7 +41,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
         mobile: '',
         email: '',
         category: '',
-        bloodGroup: '' // Extra field if needed later, but keeping to standard User type for now
+        bloodGroup: ''
     });
 
     useEffect(() => {
@@ -51,10 +59,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
         }
     }, [student]);
 
+    // Derived Data
     const myClass = state.classes.find((c: any) => c.id === student.classId);
     const myStudents = state.users.filter((u: any) => u.classId === student.classId && u.role === 'STUDENT');
 
-    // Logic to find subjects and assigned teachers
     const mySubjects = state.subjects.map((sub: Subject) => {
         const assignment = state.assignments.find((a: any) => a.classId === myClass?.id && a.subjectId === sub.id);
         if (assignment) {
@@ -67,21 +75,39 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
         return null;
     }).filter(Boolean);
 
-    // Filter exams that belong to this class
-    const myExams = useMemo(() => state.exams.filter((e: any) => e.classId === myClass?.id), [state.exams, myClass]);
+    const myExams = useMemo(() => {
+        const exams = state.exams.filter((e: any) => e.classId === myClass?.id);
+        return exams.sort((a: any, b: any) => a.name.localeCompare(b.name));
+    }, [state.exams, myClass]);
 
-    // Exam Selection Logic
+    // Auto-select the first exam on load
+    useEffect(() => {
+        if (myExams.length > 0 && selectedExamId === '') {
+            setSelectedExamId(myExams[0].id);
+        }
+    }, [myExams]);
+
     const filteredExams = useMemo(() => {
         if (selectedExamId === 'all') return myExams;
         return myExams.filter((e: any) => e.id === selectedExamId);
     }, [selectedExamId, myExams]);
 
-    // Grade Logic
     const applicableScheme = state.gradeSchemes.find((s: any) => s.applicableClasses.includes(myClass?.gradeLevel));
+
+    // Strict Grade Logic
     const getGrade = (percent: number) => {
         if (!applicableScheme) return '-';
-        const boundary = applicableScheme.boundaries.find((b: any) => percent >= b.minPercent);
+        // Ensure boundaries are sorted descending
+        const sorted = [...applicableScheme.boundaries].sort((a: any, b: any) => b.minPercent - a.minPercent);
+        const boundary = sorted.find((b: any) => percent >= b.minPercent);
         return boundary ? boundary.grade : 'F';
+    };
+
+    // Color Helpers
+    const getGradeColor = (grade: string) => {
+        if (grade === 'F') return 'text-red-600';
+        if (grade?.startsWith('A')) return 'text-emerald-600';
+        return 'text-slate-800';
     };
 
     const calculateStudentPerformance = (studentId: string, examsToUse: any[]) => {
@@ -133,27 +159,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
 
     const myPerformance = useMemo(() => calculateStudentPerformance(student.id, filteredExams), [student.id, filteredExams, state.marks]);
 
-    // Rank Calculation (Always Global based on ALL exams unless specific needed, usually rank is cumulative)
-    // However, if a user filters by exam, they might want rank in THAT exam.
     const myRank = useMemo(() => {
         if (filteredExams.length === 0) return '-';
-
         const classPerformance = myStudents.map((s: any) => ({
             id: s.id,
             ...calculateStudentPerformance(s.id, filteredExams)
         }));
-
         classPerformance.sort((a: any, b: any) => b.overallPercentage - a.overallPercentage);
-
         const rank = classPerformance.findIndex((p: any) => p.id === student.id) + 1;
         return rank > 0 ? rank : '-';
     }, [myStudents, filteredExams, state.marks]);
 
-    // Attendance
     const attendance = useMemo(() => {
         if (filteredExams.length === 0) return '0';
-        // Average attendance across filtered exams or latest?
-        // Let's take average if multiple, or exact if one.
         let totalAtt = 0;
         let count = 0;
         filteredExams.forEach((exam: any) => {
@@ -162,447 +180,524 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
                 totalAtt += parseFloat(att.percentage);
                 count++;
             } else {
-                totalAtt += 95; // Default mock if missing
+                totalAtt += 95;
                 count++;
             }
         });
         return count > 0 ? (totalAtt / count).toFixed(1) : '95';
     }, [filteredExams, state.attendance, student.id]);
 
+
+    // Helper to render exam card
+    const renderExamCard = (exam: any, detailed: boolean = false) => {
+        let examMax = 0;
+        let examObt = 0;
+        const subjectsData = exam.subjectConfigs
+            .filter((c: any) => c.included)
+            .map((conf: any) => {
+                const sub = state.subjects.find((s: any) => s.id === conf.subjectId);
+                const mark = state.marks.find((m: any) => m.examId === exam.id && m.subjectId === conf.subjectId && m.studentId === student.id);
+
+                const te = mark?.teMark === 'A' ? 0 : parseInt(mark?.teMark || '0');
+                const ce = mark?.ceMark === 'A' ? 0 : parseInt(mark?.ceMark || '0');
+                const total = te + ce;
+                const max = (conf.maxTe || 0) + (conf.maxCe || 0);
+                const percent = max > 0 ? (total / max) * 100 : 0;
+                examMax += max;
+                examObt += total;
+
+                const grade = getGrade(percent);
+
+                return {
+                    id: sub?.id,
+                    name: sub?.name,
+                    shortCode: sub?.shortCode,
+                    te: mark?.teMark || '-',
+                    ce: mark?.ceMark || '-',
+                    total: mark?.teMark === 'A' ? 'A' : total,
+                    max,
+                    grade,
+                    isPass: percent >= 35,
+                    percent: percent,
+                    aiAdvice: mark?.aiAdvice,
+                    aiAnalysis: mark?.aiAnalysis,
+                    teacher: sub?.teacher
+                };
+            });
+
+        const examPercent = examMax > 0 ? (examObt / examMax) * 100 : 0;
+        const examGrade = getGrade(examPercent);
+        const isPass = examPercent >= 35;
+
+        if (detailed) {
+            return (
+                <div key={exam.id} className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                    <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                        <div>
+                            <h2 className="text-lg font-black text-slate-800 mb-1">{exam.name}</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Report Card</p>
+                        </div>
+                        <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider ${isPass ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {isPass ? 'PASS' : 'FAIL'}
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50 text-[9px] uppercase font-black tracking-wider text-slate-400">
+                                <tr>
+                                    <th className="p-4 pl-6">Subject</th>
+                                    <th className="p-4 text-center">Marks</th>
+                                    <th className="p-4 text-center">Grade</th>
+                                    <th className="p-4 text-center pr-6">Analysis</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50 font-bold text-slate-700">
+                                {subjectsData.map((sub: any, i: number) => (
+                                    <tr key={i} onClick={() => setSelectedAiAnalysis(sub)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                        <td className="p-4 pl-6 text-slate-800">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-1 h-8 rounded-full ${sub.isPass ? 'bg-blue-500' : 'bg-red-500'}`}></div>
+                                                <div>
+                                                    <p>{sub.name}</p>
+                                                    <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">{sub.shortCode}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="text-slate-900 text-sm">{sub.total}</span>
+                                            <span className="text-slate-400 text-[10px] ml-1">/ {sub.max}</span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className={`px-2 py-1 rounded-md text-[10px] border ${sub.isPass ? 'bg-white border-slate-200 text-slate-600' : 'bg-red-50 border-red-100 text-red-600'}`}>
+                                                {sub.grade}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-center pr-6">
+                                            <button className="p-2 rounded-full hover:bg-blue-50 text-blue-500 transition-colors">
+                                                <BrainCircuit size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                <tr className="bg-slate-50/80 border-t-2 border-slate-100">
+                                    <td className="p-4 pl-6 font-black uppercase text-[10px] tracking-widest text-slate-500">Total Score</td>
+                                    <td className="p-4 text-center font-black text-slate-800 text-sm">{examObt} <span className="text-slate-400 font-bold text-[10px]">/ {examMax}</span></td>
+                                    <td className={`p-4 text-center font-black ${getGradeColor(examGrade)} text-sm`}>{examGrade}</td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-4">
+                        <div className="bg-white p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Percentage</p>
+                            <p className="text-lg font-black text-blue-600">{examPercent.toFixed(1)}%</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Result</p>
+                            <p className={`text-lg font-black ${isPass ? 'text-emerald-500' : 'text-rose-500'}`}>{isPass ? 'Passed' : 'Failed'}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div key={exam.id} onClick={() => { setSelectedExamId(exam.id); setActiveTab('grades'); }} className="group bg-white rounded-3xl p-5 border border-slate-100 shadow-md shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <span className="inline-block px-2 py-1 rounded-md bg-slate-50 text-slate-500 text-[9px] font-black uppercase tracking-wider mb-2">Exam</span>
+                        <h3 className="text-base font-black text-slate-800 leading-tight">{exam.name}</h3>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white shadow-lg ${isPass ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-rose-500 shadow-rose-500/30'}`}>
+                        {examGrade}
+                    </div>
+                </div>
+                <div className="flex items-end justify-between">
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Score</p>
+                        <p className="text-xl font-black text-slate-700">{examObt}<span className="text-[10px] text-slate-400 font-bold">/{examMax}</span></p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Percentage</p>
+                        <p className="text-xl font-black text-blue-600">{examPercent.toFixed(0)}%</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const handleSaveBio = async () => {
         try {
             const updatedUser = { ...student, ...bioForm };
             await userAPI.update(student.id, updatedUser);
-
-            // Update local state
             setState((prev: any) => ({
                 ...prev,
                 users: prev.users.map((u: User) => u.id === student.id ? updatedUser : u)
             }));
-
             setShowBioModal(false);
-            // Optional: Success toast
         } catch (error) {
             console.error("Failed to update bio", error);
-            alert("Failed to update profile. Please try again.");
+            alert("Failed to update profile.");
         }
     };
 
-    // --- MODAL ---
-    const renderBioModal = () => (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
-                <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800">Edit Profile</h2>
-                        <p className="text-xs text-slate-500 font-medium">Update your personal information</p>
-                    </div>
-                    <button onClick={() => setShowBioModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                        <X size={20} className="text-slate-500" />
-                    </button>
-                </div>
-
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Date of Birth</label>
-                            <input type="date" value={bioForm.dob} onChange={e => setBioForm({ ...bioForm, dob: e.target.value })}
-                                className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Mobile</label>
-                            <input type="text" value={bioForm.mobile} onChange={e => setBioForm({ ...bioForm, mobile: e.target.value })} placeholder="Mobile No"
-                                className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Father's Name</label>
-                            <input type="text" value={bioForm.fatherName} onChange={e => setBioForm({ ...bioForm, fatherName: e.target.value })}
-                                className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Mother's Name</label>
-                            <input type="text" value={bioForm.motherName} onChange={e => setBioForm({ ...bioForm, motherName: e.target.value })}
-                                className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Address</label>
-                        <textarea value={bioForm.address} onChange={e => setBioForm({ ...bioForm, address: e.target.value })} rows={3}
-                            className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none" />
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Email</label>
-                        <input type="email" value={bioForm.email} onChange={e => setBioForm({ ...bioForm, email: e.target.value })}
-                            className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                    </div>
-                </div>
-
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                    <button onClick={() => setShowBioModal(false)} className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors">
-                        Cancel
-                    </button>
-                    <button onClick={handleSaveBio} className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-colors flex items-center justify-center gap-2">
-                        <Save size={14} /> Save Changes
-                    </button>
-                </div>
+    // --- SUB-COMPONENTS ---
+    const ExamSelector = () => (
+        <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-6">
+            <div className="space-y-1">
+                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Exam</label>
+                <select
+                    value={selectedExamId}
+                    onChange={(e) => setSelectedExamId(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer text-slate-700"
+                >
+                    <option value="all">All Exams Summary</option>
+                    {myExams.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
             </div>
         </div>
     );
 
-    // --- VIEW: DASHBOARD ---
-    const renderDashboard = () => (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header / Filter */}
-            <div className="flex justify-between items-center px-1">
-                <h1 className="text-xl font-black text-slate-800 tracking-tight">Dashboard Overview</h1>
-                <div className="relative">
-                    <select
-                        value={selectedExamId}
-                        onChange={(e) => setSelectedExamId(e.target.value)}
-                        className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm cursor-pointer"
-                    >
-                        <option value="all">All Exams</option>
-                        {myExams.map((exam: any) => (
-                            <option key={exam.id} value={exam.id}>{exam.name}</option>
-                        ))}
-                    </select>
-                    <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-            </div>
+    const BottomNav = () => (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center z-40 md:hidden">
+            {[
+                { id: 'dashboard', icon: Home, label: 'Home' },
+                { id: 'courses', icon: Book, label: 'Subjects' },
+                { id: 'grades', icon: Award, label: 'Results' },
+                { id: 'profile', icon: UserIcon, label: 'Profile' },
+            ].map((item) => (
+                <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex flex-col items-center gap-1 transition-colors ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}`}
+                >
+                    <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                    <span className="text-[9px] font-bold uppercase tracking-wide">{item.label}</span>
+                </button>
+            ))}
+        </div>
+    );
 
-            {/* Welcome Banner */}
-            <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-900/20 relative overflow-hidden group">
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center space-x-5">
-                        <div className="w-18 h-18 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-3xl font-black shadow-lg transform group-hover:scale-105 transition-transform duration-300">
-                            {student.name.charAt(0)}
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest backdrop-blur-md border border-white/10">Student</span>
-                                <span className="flex h-2 w-2 relative">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                </span>
+    const AiAnalysisPage = () => {
+        if (!selectedAiAnalysis) return null;
+        const { subjectName, advice, analysis, score, max, grade, teacher, te, ce } = selectedAiAnalysis;
+
+        return (
+            <div className="fixed inset-0 bg-slate-50 z-50 overflow-y-auto animate-in slide-in-from-right duration-300">
+                <div className="p-6 pb-24 max-w-lg mx-auto">
+                    <button onClick={() => setSelectedAiAnalysis(null)} className="flex items-center gap-2 text-slate-500 font-bold text-sm mb-6 hover:text-blue-600 transition-colors">
+                        <ChevronLeft size={18} /> Back to Report
+                    </button>
+
+                    <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-slate-200/50 mb-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
+                        <div className="relative z-10 text-center">
+                            <div className="w-16 h-16 bg-indigo-50 rounded-2xl mx-auto flex items-center justify-center text-indigo-600 mb-4 shadow-sm">
+                                <BrainCircuit size={32} />
                             </div>
-                            <h1 className="text-3xl font-black leading-tight tracking-tight">Hello, {student.name.split(' ')[0]}!</h1>
-                            <p className="text-blue-100/90 font-bold text-xs mt-1 uppercase tracking-wider flex items-center gap-2">
-                                Class {myClass?.name} <span className="w-1 h-1 rounded-full bg-blue-300"></span> Roll #{student.admissionNo}
+                            <h2 className="text-xl font-black text-slate-800 mb-1">{subjectName}</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Performance Insight</p>
+
+                            <div className="mt-6 flex justify-center gap-6 divide-x divide-slate-100">
+                                <div className="text-center px-4">
+                                    <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider mb-1">Total</p>
+                                    <p className="text-2xl font-black text-slate-800">{score}<span className="text-xs text-slate-400 font-bold">/{max}</span></p>
+                                </div>
+                                <div className="text-center px-4">
+                                    <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider mb-1">Grade</p>
+                                    <p className={`text-2xl font-black ${getGradeColor(grade)}`}>{grade}</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-slate-50 flex justify-center gap-4 text-xs font-bold text-slate-500">
+                                <span>TE: {te}</span>
+                                <span>CE: {ce}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <Sparkles size={14} className="text-blue-500" /> Key Observations
+                            </h3>
+                            <p className="text-sm font-medium text-slate-600 leading-relaxed">
+                                {analysis || "Detailed analysis is pending for this subject."}
                             </p>
                         </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <div className="bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 text-center min-w-[100px] hover:bg-white/20 transition-colors">
-                            <p className="text-[9px] uppercase font-black text-blue-200 mb-1 tracking-widest">Class Rank</p>
-                            <p className="text-2xl font-black tracking-tight">{myRank}<span className="text-[10px] font-bold opacity-60 ml-1 aline-top">/ {myStudents.length}</span></p>
+                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100/50 shadow-sm">
+                            <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <ArrowUpRight size={14} className="text-emerald-600" /> Action Plan
+                            </h3>
+                            <p className="text-sm font-bold text-emerald-700 leading-relaxed italic">
+                                "{advice || "Continue consistent practice to improve further."}"
+                            </p>
                         </div>
-                    </div>
-                </div>
-
-                {/* Decorative Elements */}
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-indigo-500/30 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                <div className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600"><CheckCircle2 size={20} /></div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Attendance</p>
-                            <h3 className="text-xl font-black text-slate-800">{attendance}%</h3>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><Percent size={20} /></div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Avg. Score</p>
-                            <h3 className="text-xl font-black text-slate-800">{myPerformance.overallPercentage.toFixed(1)}%</h3>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-shadow col-span-2 lg:col-span-1">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600"><Star size={20} /></div>
-                        <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Marks</p>
-                            <h3 className="text-xl font-black text-slate-800">{myPerformance.totalObtained} <span className="text-[10px] text-slate-300 font-bold">/ {myPerformance.totalMax}</span></h3>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Charts Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                    <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center uppercase tracking-widest">
-                        <TrendingUp className="mr-2 text-blue-500" size={16} /> Performance Trend
-                    </h3>
-                    <div className="h-48 w-full mt-2">
-                        {myPerformance.examResults.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={myPerformance.examResults}>
-                                    <defs>
-                                        <linearGradient id="colorPerf" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
-                                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} domain={[0, 100]} width={25} />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }}
-                                    />
-                                    <Area type="monotone" dataKey="percentage" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorPerf)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-slate-300 text-xs font-bold uppercase tracking-widest">No Data Available</div>
+                        {teacher && (
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs">
+                                    {teacher.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Subject Teacher</p>
+                                    <p className="text-sm font-bold text-slate-800">{teacher.name}</p>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-                    <div className="absolute top-4 right-4 animate-fade-in">
-                        <button onClick={() => setShowBioModal(true)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                            <Settings size={14} />
-                        </button>
-                    </div>
-                    <h3 className="text-xs font-black text-slate-800 mb-6 flex items-center uppercase tracking-widest">
-                        <UserIcon className="mr-2 text-indigo-500" size={16} /> Student Profile
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3 relative z-10">
-                        {[
-                            {
-                                label: "DOB",
-                                val: student.dob ? (() => {
-                                    try {
-                                        const d = new Date(student.dob);
-                                        return `${d.getDate()} ${d.toLocaleString('default', { month: 'long' })}, ${d.getFullYear()}`;
-                                    } catch { return student.dob }
-                                })() : 'Not Listed',
-                                icon: Calendar,
-                                color: 'text-blue-500 bg-blue-50'
-                            },
-                            { label: "Phone", val: student.mobile, icon: Phone, color: 'text-emerald-500 bg-emerald-50' },
-                            { label: "Father", val: student.fatherName, icon: UserIcon, color: 'text-indigo-500 bg-indigo-50' },
-                            { label: "Email", val: student.email, icon: Mail, color: 'text-rose-500 bg-rose-50' },
-                            { label: "Category", val: student.category, icon: Award, color: 'text-purple-500 bg-purple-50' },
-                            { label: "Address", val: student.address, icon: MapPin, color: 'text-orange-500 bg-orange-50' },
-                        ].map((item, i) => (
-                            <div key={i} className="flex flex-col p-3 bg-slate-50/80 rounded-2xl border border-slate-100/50">
-                                <div className="flex justify-between items-start mb-1">
-                                    <item.icon size={14} className={`${item.color.split(' ')[0]} mb-2`} />
-                                </div>
-                                <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{item.label}</p>
-                                <p className="text-[11px] font-bold text-slate-800 truncate">{item.val || '—'}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
-    // --- VIEW: COURSES ---
-    const renderCourses = () => (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-end px-2">
+    const HomeView = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 pt-4">
+            {/* Header */}
+            <div className="flex justify-between items-center text-slate-800">
                 <div>
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">My Journey</p>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Active Subjects</h1>
+                    <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        Hi, {student.name.split(' ')[0]} <span className="text-2xl">👋</span>
+                    </h1>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Class {myClass?.name} Student</p>
                 </div>
-                <div className="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
-                    {mySubjects.length} Courses
+                <div onClick={() => setActiveTab('profile')} className="w-11 h-11 bg-white rounded-full overflow-hidden border-2 border-slate-100 shadow-sm cursor-pointer p-1">
+                    <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                        <UserIcon size={20} />
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {mySubjects.map((sub: any, idx) => {
-                    const iconObj = LEARNING_ICONS.find(i => sub.name.trim().toLowerCase().includes(i.label.toLowerCase())) || LEARNING_ICONS[idx % LEARNING_ICONS.length];
+            {/* Exam Selector in Dashboard */}
+            <ExamSelector />
 
-                    // Generate consistent color for teacher
-                    const getTeacherColor = (name: string) => {
-                        const colors = [
-                            'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-green-500', 'bg-emerald-500',
-                            'bg-teal-500', 'bg-cyan-500', 'bg-blue-500', 'bg-indigo-500', 'bg-violet-500',
-                            'bg-purple-500', 'bg-fuchsia-500', 'bg-pink-500', 'bg-rose-500'
-                        ];
-                        let hash = 0;
-                        for (let i = 0; i < name.length; i++) {
-                            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-                        }
-                        return colors[Math.abs(hash) % colors.length];
-                    };
-                    const teacherColor = sub.teacher?.name ? getTeacherColor(sub.teacher.name) : 'bg-slate-400';
-
-                    return (
-                        <div key={sub.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 group hover:border-blue-200 transition-all relative overflow-hidden hover:shadow-md">
-                            <div className={`absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br ${iconObj.color.replace('text-', 'from-').replace('400', '100')} to-transparent rounded-full opacity-20 group-hover:scale-110 transition-transform`}></div>
-
-                            <div className="relative z-10">
-                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-5 shadow-sm border border-slate-50">
-                                    <span className={`${iconObj.color} text-2xl`}>{iconObj.icon}</span>
-                                </div>
-                                <h3 className="text-lg font-black text-slate-800 leading-tight mb-1">{sub.name}</h3>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">{sub.shortCode || 'CORE'}</p>
-
-                                <div className="flex items-center gap-3 pt-5 border-t border-slate-50">
-                                    <div className={`w-8 h-8 ${teacherColor} rounded-2xl flex items-center justify-center text-white font-black text-[10px] shadow-sm shadow-blue-500/10`}>
-                                        {sub.teacher?.name.charAt(0) || 'T'}
-                                    </div>
-                                    <div className="overflow-hidden">
-                                        <p className="text-[7px] font-black uppercase text-slate-400 tracking-widest">Instructor</p>
-                                        <p className="text-[11px] font-bold text-slate-700 truncate">{sub.teacher?.name || 'Not Assigned'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
-    );
-
-    // --- VIEW: GRADES ---
-    const renderGrades = () => (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-end px-2">
+            {/* Selected Exam Section */}
+            {filteredExams.length > 0 ? (
                 <div>
-                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Academic Performance</p>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Exam Analysis</h1>
+                    <div className="flex items-center justify-between mb-4 px-1">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <Star size={16} className="text-amber-500 fill-amber-500" />
+                            {selectedExamId === 'all' ? 'Latest Result' : 'Selected Result'}
+                        </h3>
+                        <button onClick={() => setActiveTab('grades')} className="text-[10px] font-black text-blue-600 uppercase tracking-wider hover:underline">View Full Report</button>
+                    </div>
+                    {/* Render the selected exam (or latest if 'all') */}
+                    {renderExamCard(selectedExamId === 'all' ? myExams[0] : filteredExams[0], false)}
                 </div>
-                <div className="relative">
-                    <select
-                        value={selectedExamId}
-                        onChange={(e) => setSelectedExamId(e.target.value)}
-                        className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm cursor-pointer"
-                    >
-                        <option value="all">All Exams</option>
-                        {myExams.map((exam: any) => (
-                            <option key={exam.id} value={exam.id}>{exam.name}</option>
-                        ))}
-                    </select>
-                    <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            ) : (
+                <div className="bg-slate-50 rounded-3xl p-8 text-center border border-dashed border-slate-200">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No exams available yet</p>
+                </div>
+            )}
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900 rounded-3xl p-5 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden">
+                    <div className="relative z-10">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Class Rank</p>
+                        <h2 className="text-4xl font-black text-white">{myRank}</h2>
+                        <p className="text-[9px] font-bold text-slate-500 mt-1">Top {Math.min(5, myStudents.length)} in class</p>
+                    </div>
+                    <Award className="absolute -bottom-4 -right-4 text-slate-800" size={80} />
+                </div>
+                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="relative z-10">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Attendance</p>
+                        <h2 className="text-4xl font-black text-slate-800">{attendance}<span className="text-lg">%</span></h2>
+                        <p className="text-[9px] font-bold text-emerald-500 mt-1">Good Record</p>
+                    </div>
+                    <CheckCircle2 className="absolute -bottom-4 -right-4 text-slate-50" size={80} />
                 </div>
             </div>
 
-            {filteredExams.length > 0 ? filteredExams.map((exam: any) => {
-                // Calculate results for this specific exam
-                let examMax = 0;
-                let examObt = 0;
-                const subjectsData = exam.subjectConfigs
-                    .filter((c: any) => c.included)
-                    .map((conf: any) => {
-                        const sub = state.subjects.find((s: any) => s.id === conf.subjectId);
-                        const mark = state.marks.find((m: any) => m.examId === exam.id && m.subjectId === conf.subjectId && m.studentId === student.id);
-
-                        const te = mark?.teMark === 'A' ? 0 : parseInt(mark?.teMark || '0');
-                        const ce = mark?.ceMark === 'A' ? 0 : parseInt(mark?.ceMark || '0');
-                        const total = te + ce;
-                        const max = (conf.maxTe || 0) + (conf.maxCe || 0);
-                        const percent = max > 0 ? (total / max) * 100 : 0;
-
-                        examMax += max;
-                        examObt += total;
-
-                        return {
-                            name: sub?.name,
-                            shortCode: sub?.shortCode,
-                            te: mark?.teMark || '-',
-                            ce: mark?.ceMark || '-',
-                            total,
-                            max,
-                            grade: getGrade(percent),
-                            isPass: percent >= 35,
-                            percent: percent
-                        };
-                    });
-
-                const examPercent = examMax > 0 ? (examObt / examMax) * 100 : 0;
-                const examGrade = getGrade(examPercent);
-                const isPass = examPercent >= 35;
-
-                return (
-                    <div key={exam.id} className="bg-white rounded-3xl overflow-hidden mb-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-                        <div className="p-5 flex justify-between items-center bg-slate-50/50 border-b border-slate-100">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-                                    <FileText size={24} />
-                                </div>
-                                <div className="overflow-hidden">
-                                    <h3 className="font-black text-slate-800 text-sm truncate">{exam.name}</h3>
-                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">{subjectsData.length} Subjects</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <div className="text-right">
-                                    <p className="text-[7px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Overall</p>
-                                    <p className={`text-lg font-black ${isPass ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                        {examPercent.toFixed(1)}% <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200 text-[10px] ml-1 text-slate-600">{examGrade}</span>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="divide-y divide-slate-50">
-                            {subjectsData.map((row: any, idx: number) => (
-                                <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
-                                    <div className="flex-1 min-w-0 pr-4">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                {row.shortCode || row.name.substring(0, 3).toUpperCase()}
-                                            </span>
-                                            <div>
-                                                <p className="font-bold text-slate-800 text-xs truncate">{row.name}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                        <div className="hidden sm:block text-right">
-                                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Marks</p>
-                                            <p className="text-xs font-black text-slate-800">{row.total}<span className="text-[9px] text-slate-300 ml-0.5">/{row.max}</span></p>
-                                        </div>
-                                        <div className="text-right w-16">
-                                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Grade</p>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <span className={`text-[9px] font-black ${row.isPass ? 'text-emerald-500' : 'text-rose-500'} uppercase`}>{row.isPass ? 'Pass' : 'Fail'}</span>
-                                                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-700 border border-slate-200">
-                                                    {row.grade}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+            {/* Performance Graph */}
+            {myPerformance.examResults.length > 0 && (
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <TrendingUp size={14} className="text-blue-500" /> Progress
+                        </h3>
                     </div>
-                )
-            }) : (
-                <div className="bg-white rounded-3xl py-20 text-center text-slate-400 font-bold opacity-50 border border-slate-100 border-dashed">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <AlertCircle size={28} />
+                    <div className="h-40 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={myPerformance.examResults}>
+                                <defs>
+                                    <linearGradient id="colorWaveHome" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }} />
+                                <Area type="monotone" dataKey="percentage" stroke="#3b82f6" strokeWidth={3} fill="url(#colorWaveHome)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
-                    No exam records found.
                 </div>
             )}
         </div>
     );
 
+    const ExamsView = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 pt-4">
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center px-1">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Exam Results</h1>
+                </div>
+                {/* Exam Selector in Results */}
+                <ExamSelector />
+            </div>
+
+            {/* If 'all' is selected, show list of cards. If specific, show detailed table */}
+            {selectedExamId === 'all' ? (
+                <div className="grid grid-cols-1 gap-4">
+                    {myExams.length > 0 ? myExams.map((e: any) => renderExamCard(e, false)) : (
+                        <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase">No exams found</div>
+                    )}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 gap-4">
+                    {filteredExams.map((e: any) => renderExamCard(e, true))}
+                </div>
+            )}
+        </div>
+    );
+
+    const SubjectsView = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight pt-2">My Subjects</h1>
+            <div className="grid grid-cols-2 gap-3">
+                {mySubjects.map((sub: any, idx) => {
+                    const iconObj = LEARNING_ICONS.find(i => sub.name.trim().toLowerCase().includes(i.label.toLowerCase())) || LEARNING_ICONS[idx % LEARNING_ICONS.length];
+                    return (
+                        <div key={sub.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center gap-3 relative overflow-hidden group hover:shadow-md transition-all">
+                            {/* Hover Animation Background */}
+                            <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-br ${iconObj.color.replace('text-', 'from-').replace('600', '100').replace('500', '100')} to-transparent rounded-full opacity-0 group-hover:scale-150 group-hover:opacity-20 transition-all duration-500`}></div>
+
+                            <div className="relative z-10 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-slate-50">
+                                <span className={iconObj.color}>{iconObj.icon}</span>
+                            </div>
+                            <div className="relative z-10">
+                                <h3 className="font-bold text-slate-800 text-xs line-clamp-1">{sub.name}</h3>
+                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-0.5">{sub.shortCode || 'SUB'}</p>
+                            </div>
+                            <div className="relative z-10 w-full pt-3 border-t border-slate-50 mt-1">
+                                <p className="text-[9px] font-bold text-slate-500 truncate">{sub.teacher?.name || 'Assigned soon'}</p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
+    const ProfileView = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+            <div className="relative mt-4 mb-10">
+                <div className="h-32 bg-slate-900 rounded-[2.5rem] w-full absolute top-0 z-0"></div>
+                <div className="relative z-10 pt-16 text-center">
+                    <div className="w-28 h-28 bg-white p-1.5 rounded-full mx-auto shadow-xl">
+                        <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-4xl text-slate-400 font-black">
+                            {student.name.charAt(0)}
+                        </div>
+                    </div>
+                    <h1 className="text-xl font-black text-slate-900 mt-3">{student.name}</h1>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Class {myClass?.name} • Roll - {student.admissionNo}</p>
+                </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-[2rem] p-4 text-xs font-bold text-slate-600 space-y-4">
+                <h3 className="uppercase tracking-widest text-slate-400 text-[10px] font-black pl-2">Personal Details</h3>
+                <div className="grid grid-cols-1 gap-1">
+                    {[
+                        { l: 'Full Name', v: student.name },
+                        { l: 'Admission No', v: student.admissionNo },
+                        { l: 'Date of Birth', v: student.dob ? new Date(student.dob).toLocaleDateString() : 'N/A' },
+                        { l: 'Gender', v: student.gender || 'Not Specified' },
+                        { l: 'Category', v: student.category || 'General' },
+                        { l: 'Blood Group', v: 'N/A' }, // Add if available
+                    ].map((item, i) => (
+                        <div key={i} className="flex justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <span className="text-slate-400">{item.l}</span>
+                            <span className="text-slate-900">{item.v}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <h3 className="uppercase tracking-widest text-slate-400 text-[10px] font-black pl-2 mt-4">Family & Contact</h3>
+                <div className="grid grid-cols-1 gap-1">
+                    {[
+                        { l: 'Father Name', v: student.fatherName },
+                        { l: 'Mother Name', v: student.motherName },
+                        { l: 'Mobile', v: student.mobile },
+                        { l: 'Email', v: student.email },
+                        { l: 'Address', v: student.address },
+                    ].map((item, i) => (
+                        <div key={i} className="flex justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <span className="text-slate-400">{item.l}</span>
+                            <span className="text-slate-900 text-right max-w-[60%] truncate">{item.v || '-'}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <button onClick={() => setShowBioModal(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 mt-4 hover:bg-blue-700 transition-colors">
+                    Edit Profile Information
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderBioModal = () => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+                <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                    <h2 className="text-lg font-black text-slate-800">Edit Profile</h2>
+                    <button onClick={() => setShowBioModal(false)}><X size={20} className="text-slate-500" /></button>
+                </div>
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                    <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Mobile</label>
+                        <input type="text" value={bioForm.mobile} onChange={e => setBioForm({ ...bioForm, mobile: e.target.value })} className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:border-blue-500 transition-all" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Address</label>
+                        <textarea value={bioForm.address} onChange={e => setBioForm({ ...bioForm, address: e.target.value })} className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:border-blue-500 transition-all resize-none" />
+                    </div>
+                </div>
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                    <button onClick={() => setShowBioModal(false)} className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-200">Cancel</button>
+                    <button onClick={handleSaveBio} className="flex-1 py-3 rounded-xl text-xs font-bold text-white bg-blue-600 shadow-lg shadow-blue-500/30">Save</button>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="max-w-4xl mx-auto px-4 sm:px-0 pb-10">
-            {view === 'dashboard' && renderDashboard()}
-            {view === 'courses' && renderCourses()}
-            {view === 'grades' && renderGrades()}
+        <div className="max-w-md mx-auto min-h-screen bg-white shadow-2xl md:max-w-4xl md:bg-transparent md:shadow-none font-sans text-base">
+            <div className="hidden md:flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-black text-slate-800">Student Portal</h1>
+                <div className="flex gap-2">
+                    {['dashboard', 'grades', 'courses', 'profile'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTab(t)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="p-4 md:p-0">
+                {activeTab === 'dashboard' && <HomeView />}
+                {activeTab === 'courses' && <SubjectsView />}
+                {activeTab === 'grades' && <ExamsView />}
+                {activeTab === 'profile' && <ProfileView />}
+            </div>
+
+            {selectedAiAnalysis && <AiAnalysisPage />}
             {showBioModal && renderBioModal()}
+            <BottomNav />
         </div>
     );
 };

@@ -300,14 +300,14 @@ const ExamManager: React.FC<ExamManagerProps> = ({ teacher, state, setState }) =
                       const subject = state.subjects.find((s: any) => s.id === config.subjectId);
                       if (!subject) return null;
                       return (
-                        <div key={`config-${config.subjectId}`} className={`flex flex-col p-4 rounded-[2rem] border ${config.included ? 'bg-white border-blue-100 shadow-md' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div key={`config-${config.subjectId}`} className={`flex flex-col p-4 rounded-[2rem] border transition-all ${config.included ? 'bg-white border-blue-100 shadow-md' : 'bg-slate-50/50 border-slate-200'}`}>
                           <div className="flex items-center gap-4">
                             <button
                               type="button"
                               onClick={() => toggleSubject(config.subjectId)}
-                              className={`${config.included ? 'text-blue-600' : 'text-slate-400'}`}
+                              className={`transition-colors ${config.included ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                              {config.included ? <CheckSquare size={24} /> : <Square size={24} />}
+                              {config.included ? <CheckSquare size={24} className="fill-blue-50" /> : <div className="w-6 h-6 rounded-lg border-2 border-slate-300 hover:border-slate-400 bg-white transition-colors" />}
                             </button>
                             <span className="flex-1 font-black text-slate-800">{subject.name}</span>
 

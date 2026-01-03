@@ -816,16 +816,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                     const isChecked = selectedSubjects.hasOwnProperty(sub.id);
                     return (
                         <div key={sub.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isChecked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
-                            <input
-                                type="checkbox"
-                                id={`subject-${sub.id}`}
-                                name={`subject-checkbox-${sub.id}`}
-                                checked={isChecked}
-                                onChange={(e) => {
-                                    const checked = e.target.checked;
+                            <button
+                                type="button"
+                                onClick={() => {
                                     setSelectedSubjects(prev => {
                                         const newState = { ...prev };
-                                        if (checked) {
+                                        if (!isChecked) {
                                             newState[sub.id] = teachers[0]?.id || '';
                                         } else {
                                             delete newState[sub.id];
@@ -833,8 +829,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                         return newState;
                                     });
                                 }}
-                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
+                                className={`flex-shrink-0 transition-colors ${isChecked ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {isChecked ? <CheckCircle2 size={24} className="fill-blue-100" /> : <div className="w-6 h-6 rounded-full border-2 border-slate-300 hover:border-slate-400 transition-colors" />}
+                            </button>
                             <span className={`text-sm font-bold flex-1 ${isChecked ? 'text-blue-800' : 'text-slate-500'}`}>{sub.name}</span>
 
                             {isChecked && (
@@ -1742,22 +1740,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                     const isChecked = selectedReportLanguages.includes(lang);
                                     return (
                                         <label key={lang} htmlFor={`lang-${lang}`} className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all cursor-pointer group ${isChecked ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-100'}`}>
-                                            <input
-                                                id={`lang-${lang}`}
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={(e) => {
-                                                    const checked = e.target.checked;
+                                            <button
+                                                type="button"
+                                                onClick={() => {
                                                     setSelectedReportLanguages(prev => {
-                                                        if (checked) {
+                                                        if (!isChecked) {
                                                             return [...prev, lang];
                                                         } else {
                                                             return prev.filter(l => l !== lang);
                                                         }
                                                     });
                                                 }}
-                                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                            />
+                                                className={`flex-shrink-0 transition-colors ${isChecked ? 'text-blue-600' : 'text-slate-300 group-hover:text-slate-400'}`}
+                                            >
+                                                {isChecked ? <CheckCircle2 size={20} className="fill-blue-100" /> : <div className="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-slate-400 transition-colors" />}
+                                            </button>
                                             <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-blue-700' : 'text-slate-600 group-hover:text-blue-600'}`}>{lang}</span>
                                         </label>
                                     );
