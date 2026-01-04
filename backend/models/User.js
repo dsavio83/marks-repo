@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Username is required'],
     unique: true,
     trim: true,
-    minlength: [3, 'Username must be at least 3 characters long']
+    minlength: [2, 'Username must be at least 2 characters long']
   },
   name: {
     type: String,
@@ -76,7 +76,7 @@ const userSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['General', 'OBC', 'SC', 'ST']
+    enum: ['General', 'OBC', 'OEC', 'SC', 'ST']
   },
   caste: {
     type: String,

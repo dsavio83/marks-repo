@@ -10,8 +10,33 @@ const getAllAttendance = async (req, res) => {
     try {
         const attendance = await Attendance.find()
             .populate('studentId', 'name username admissionNo')
-            .populate('examId', 'name');
-        res.json(attendance);
+            .populate('examId', 'name')
+            .lean(); // Use lean for performance and to avoid CastErrors on bad data
+
+        // Filter out any records where student or exam is missing (unlikely if referential integrity is kept, but safe)
+        const validAttendance = attendance.filter(a => a.studentId && a.examId)
+            .map(a => ({
+                ...a,
+                id: a._id.toString(),
+                studentId: {
+                    ...a.studentId,
+                    id: a.studentId._id ? a.studentId._id.toString() : ''
+                },
+                examId: {
+                    ...a.examId,
+                    id: a.examId._id ? a.examId._id.toString() : ''
+                }
+            }));
+
+        // Clean up _id
+        validAttendance.forEach(a => {
+            delete a._id;
+            delete a.__v;
+            if (a.studentId) { delete a.studentId._id; }
+            if (a.examId) { delete a.examId._id; }
+        });
+
+        res.json(validAttendance);
     } catch (error) {
         console.error('Get attendance error:', error);
         res.status(500).json({ message: 'Server error' });

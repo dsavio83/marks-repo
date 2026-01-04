@@ -1,12 +1,20 @@
 const Subject = require('../models/Subject');
+const SubjectAssignment = require('../models/SubjectAssignment');
 
 // @desc    Get all subjects
 // @route   GET /api/subjects
 // @access  Private (Admin/Teacher)
 const getAllSubjects = async (req, res) => {
   try {
-    const subjects = await Subject.find();
-    res.json(subjects);
+    const subjects = await Subject.find().lean();
+    const formattedSubjects = subjects.map(s => ({
+      ...s,
+      id: s._id.toString()
+    }));
+
+    formattedSubjects.forEach(s => { delete s._id; delete s.__v; });
+
+    res.json(formattedSubjects);
   } catch (error) {
     console.error('Get subjects error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -105,6 +113,9 @@ const deleteSubject = async (req, res) => {
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' });
     }
+
+    // Delete all assignments for this subject
+    await SubjectAssignment.deleteMany({ subjectId: req.params.id });
 
     await Subject.findByIdAndDelete(req.params.id);
     res.json({ message: 'Subject deleted successfully' });

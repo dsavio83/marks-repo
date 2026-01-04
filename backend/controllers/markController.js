@@ -9,13 +9,38 @@ const { generateAnalysis } = require('../services/geminiService');
 // @desc    Get all marks
 // @route   GET /api/marks
 // @access  Private (Admin/Teacher)
+// @desc    Get all marks
+// @route   GET /api/marks
+// @access  Private (Admin/Teacher)
 const getAllMarks = async (req, res) => {
   try {
     const marks = await Mark.find()
       .populate('studentId', 'name username admissionNo')
       .populate('subjectId', 'name shortCode')
-      .populate('examId', 'name');
-    res.json(marks);
+      .populate('examId', 'name')
+      .lean();
+
+    // Filter out orphans and transform _id to id
+    const validMarks = marks
+      .filter(m => m.studentId && m.subjectId && m.examId)
+      .map(m => ({
+        ...m,
+        id: m._id.toString(),
+        studentId: { ...m.studentId, id: m.studentId._id ? m.studentId._id.toString() : '' },
+        subjectId: { ...m.subjectId, id: m.subjectId._id ? m.subjectId._id.toString() : '' },
+        examId: { ...m.examId, id: m.examId._id ? m.examId._id.toString() : '' }
+      }));
+
+    // Cleanup _id
+    validMarks.forEach(m => {
+      delete m._id;
+      delete m.__v;
+      if (m.studentId) delete m.studentId._id;
+      if (m.subjectId) delete m.subjectId._id;
+      if (m.examId) delete m.examId._id;
+    });
+
+    res.json(validMarks);
   } catch (error) {
     console.error('Get marks error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -30,8 +55,28 @@ const getMarksByExam = async (req, res) => {
     const marks = await Mark.find({ examId: req.params.examId })
       .populate('studentId', 'name username admissionNo')
       .populate('subjectId', 'name shortCode')
-      .populate('examId', 'name');
-    res.json(marks);
+      .populate('examId', 'name')
+      .lean();
+
+    const validMarks = marks
+      .filter(m => m.studentId && m.subjectId && m.examId)
+      .map(m => ({
+        ...m,
+        id: m._id.toString(),
+        studentId: { ...m.studentId, id: m.studentId._id ? m.studentId._id.toString() : '' },
+        subjectId: { ...m.subjectId, id: m.subjectId._id ? m.subjectId._id.toString() : '' },
+        examId: { ...m.examId, id: m.examId._id ? m.examId._id.toString() : '' }
+      }));
+
+    validMarks.forEach(m => {
+      delete m._id;
+      delete m.__v;
+      if (m.studentId) delete m.studentId._id;
+      if (m.subjectId) delete m.subjectId._id;
+      if (m.examId) delete m.examId._id;
+    });
+
+    res.json(validMarks);
   } catch (error) {
     console.error('Get marks by exam error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -45,8 +90,26 @@ const getMarksByStudent = async (req, res) => {
   try {
     const marks = await Mark.find({ studentId: req.params.studentId })
       .populate('subjectId', 'name shortCode')
-      .populate('examId', 'name');
-    res.json(marks);
+      .populate('examId', 'name')
+      .lean();
+
+    const validMarks = marks
+      .filter(m => m.subjectId && m.examId)
+      .map(m => ({
+        ...m,
+        id: m._id.toString(),
+        subjectId: { ...m.subjectId, id: m.subjectId._id ? m.subjectId._id.toString() : '' },
+        examId: { ...m.examId, id: m.examId._id ? m.examId._id.toString() : '' }
+      }));
+
+    validMarks.forEach(m => {
+      delete m._id;
+      delete m.__v;
+      if (m.subjectId) delete m.subjectId._id;
+      if (m.examId) delete m.examId._id;
+    });
+
+    res.json(validMarks);
   } catch (error) {
     console.error('Get marks by student error:', error);
     res.status(500).json({ message: 'Server error' });

@@ -8,8 +8,23 @@ const SubjectAssignment = require('../models/SubjectAssignment');
 const getAllClasses = async (req, res) => {
   try {
     const classes = await ClassRoom.find()
-      .populate('classTeacherId', 'name username');
-    res.json(classes);
+      .populate('classTeacherId', 'name username')
+      .lean();
+
+    // Transform to ensure frontend compatibility
+    const formattedClasses = classes.map(c => ({
+      ...c,
+      id: c._id.toString(),
+      classTeacherId: c.classTeacherId ? { ...c.classTeacherId, id: c.classTeacherId._id ? c.classTeacherId._id.toString() : '' } : null
+    }));
+
+    formattedClasses.forEach(c => {
+      delete c._id;
+      delete c.__v;
+      if (c.classTeacherId) delete c.classTeacherId._id;
+    });
+
+    res.json(formattedClasses);
   } catch (error) {
     console.error('Get classes error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -174,9 +189,26 @@ const getClassSubjects = async (req, res) => {
   try {
     const subjects = await SubjectAssignment.find({ classId: req.params.id })
       .populate('subjectId', 'name shortCode')
-      .populate('teacherId', 'name username');
+      .populate('teacherId', 'name username')
+      .lean();
 
-    res.json(subjects);
+    const validSubjects = subjects
+      .filter(s => s.subjectId && s.teacherId) // Filter orphans
+      .map(s => ({
+        ...s,
+        id: s._id.toString(),
+        subjectId: { ...s.subjectId, id: s.subjectId._id ? s.subjectId._id.toString() : '' },
+        teacherId: { ...s.teacherId, id: s.teacherId._id ? s.teacherId._id.toString() : '' }
+      }));
+
+    validSubjects.forEach(s => {
+      delete s._id;
+      delete s.__v;
+      if (s.subjectId) delete s.subjectId._id;
+      if (s.teacherId) delete s.teacherId._id;
+    });
+
+    res.json(validSubjects);
   } catch (error) {
     console.error('Get class subjects error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -188,8 +220,29 @@ const getClassSubjects = async (req, res) => {
 // @access  Private (Admin/Teacher)
 const getAllAssignments = async (req, res) => {
   try {
-    const assignments = await SubjectAssignment.find();
-    res.json(assignments);
+    // Use lean() to avoid CastError on invalid data and improve performance
+    const assignments = await SubjectAssignment.find().lean();
+
+    // Transform and filter
+    const formattedAssignments = assignments
+      .map(doc => ({
+        ...doc,
+        id: doc._id.toString(),
+        // Convert ObjectIds to strings if they exist, handle potential bad data
+        subjectId: doc.subjectId ? doc.subjectId.toString() : null,
+        classId: doc.classId ? doc.classId.toString() : null,
+        teacherId: doc.teacherId ? doc.teacherId.toString() : null
+      }))
+      // Filter out invalid assignments
+      .filter(a => a.subjectId && a.subjectId !== '' && a.classId && a.teacherId);
+
+    // Remove _id and __v
+    formattedAssignments.forEach(a => {
+      delete a._id;
+      delete a.__v;
+    });
+
+    res.json(formattedAssignments);
   } catch (error) {
     console.error('Get all assignments error:', error);
     res.status(500).json({ message: 'Server error' });

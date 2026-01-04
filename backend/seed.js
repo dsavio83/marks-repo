@@ -27,7 +27,7 @@ const seedDatabase = async () => {
     await Subject.deleteMany({});
     await SubjectAssignment.deleteMany({});
     await SchoolDetails.deleteMany({});
-    
+
     console.log('✓ Cleared existing data');
 
     // Create School Details
@@ -61,6 +61,45 @@ const seedDatabase = async () => {
       console.log(`✓ Created subject: ${subject.name}`);
     }
 
+    // Create Grade Schemes
+    const GradeScheme = require('./models/GradeScheme');
+    await GradeScheme.deleteMany({});
+
+    const gradeSchemes = [
+      {
+        name: 'High School (9-10)',
+        applicableClasses: ['9', '10'],
+        boundaries: [
+          { grade: 'A+', minPercent: 90 },
+          { grade: 'A', minPercent: 80 },
+          { grade: 'B+', minPercent: 70 },
+          { grade: 'B', minPercent: 60 },
+          { grade: 'C+', minPercent: 50 },
+          { grade: 'C', minPercent: 40 },
+          { grade: 'D+', minPercent: 30 },
+          { grade: 'D', minPercent: 20 },
+          { grade: 'E', minPercent: 0 }
+        ]
+      },
+      {
+        name: 'Upper Primary (5-8)',
+        applicableClasses: ['5', '6', '7', '8'],
+        boundaries: [
+          { grade: 'A', minPercent: 80 },
+          { grade: 'B', minPercent: 60 },
+          { grade: 'C', minPercent: 40 },
+          { grade: 'D', minPercent: 30 },
+          { grade: 'E', minPercent: 0 }
+        ]
+      }
+    ];
+
+    for (const schemeData of gradeSchemes) {
+      const scheme = new GradeScheme(schemeData);
+      await scheme.save();
+      console.log(`✓ Created grade scheme: ${scheme.name}`);
+    }
+
     // Create Users first (so we have teacher IDs)
     const users = [
       // Admin
@@ -81,7 +120,7 @@ const seedDatabase = async () => {
         address: 'Admin Address',
         transportMode: 'Car'
       },
-      
+
       // Teachers
       {
         username: 'teacher1',
@@ -268,12 +307,12 @@ const seedDatabase = async () => {
       { classId: createdClasses[0]._id, subjectId: createdSubjects[0]._id, teacherId: createdUsers[1]._id }, // English - John
       { classId: createdClasses[0]._id, subjectId: createdSubjects[1]._id, teacherId: createdUsers[2]._id }, // Math - Jane
       { classId: createdClasses[0]._id, subjectId: createdSubjects[2]._id, teacherId: createdUsers[3]._id }, // Science - Bob
-      
+
       // Class 7-B
       { classId: createdClasses[1]._id, subjectId: createdSubjects[3]._id, teacherId: createdUsers[1]._id }, // Social - John
       { classId: createdClasses[1]._id, subjectId: createdSubjects[4]._id, teacherId: createdUsers[2]._id }, // Tamil - Jane
       { classId: createdClasses[1]._id, subjectId: createdSubjects[5]._id, teacherId: createdUsers[3]._id }, // Hindi - Bob
-      
+
       // Class 8-C
       { classId: createdClasses[2]._id, subjectId: createdSubjects[6]._id, teacherId: createdUsers[1]._id }, // PE - John
       { classId: createdClasses[2]._id, subjectId: createdSubjects[7]._id, teacherId: createdUsers[2]._id }, // CS - Jane

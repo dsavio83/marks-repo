@@ -113,7 +113,12 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select('-password').lean();
+    if (user) {
+      user.id = user._id.toString();
+      delete user._id;
+      delete user.__v;
+    }
     res.json(user);
   } catch (error) {
     console.error('Profile error:', error);
