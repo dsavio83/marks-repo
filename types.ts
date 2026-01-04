@@ -52,7 +52,7 @@ export interface User {
   email?: string;
   gender?: 'Male' | 'Female' | 'Other';
   dob?: string;
-  category?: 'General' | 'OBC' | 'SC' | 'ST';
+  category?: 'General' | 'OBC' | 'OEC' | 'SC' | 'ST';
   caste?: string;
   religion?: string;
   fatherName?: string;

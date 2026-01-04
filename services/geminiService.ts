@@ -8,8 +8,8 @@ export const getAIAnalysis = async (data: any) => {
   try {
     // Filter out marks where TE/CE are empty string/undefined before sending to AI
     const studentsWithFilteredMarks = data.students.map((s: any) => ({
-        ...s,
-        marks: s.marks.filter((m: any) => (m.teMark !== '' && m.teMark !== undefined) || (m.ceMark !== '' && m.ceMark !== undefined))
+      ...s,
+      marks: s.marks.filter((m: any) => (m.teMark !== '' && m.teMark !== undefined) || (m.ceMark !== '' && m.ceMark !== undefined))
     }));
 
     const cleanData = { ...data, students: studentsWithFilteredMarks };
@@ -80,7 +80,7 @@ export const getAIAnalysis = async (data: any) => {
            <div class="bg-purple-50/50 p-6 rounded-3xl border border-purple-100">
              <h4 class="font-black text-purple-900 mb-6 text-sm uppercase tracking-widest">Category Breakdown (Avg %)</h4>
              <div class="space-y-3">
-               <!-- Repeat for each category present (General, OBC, SC, ST etc.) -->
+               <!-- Repeat for each category present (General, OEC, OBC, SC, ST etc.) -->
                <div class="flex items-center justify-between">
                  <span class="text-xs font-bold text-purple-800 w-24">[Category Name]</span>
                  <div class="flex-1 mx-3 h-2 bg-white rounded-full overflow-hidden">

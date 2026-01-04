@@ -36,6 +36,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingItem, setEditingItem] = useState<any>(null);
     const [showModal, setShowModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importClassId, setImportClassId] = useState('');
 
     // Toast State
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
@@ -231,9 +233,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
     };
 
     // --- CSV Import Students (New for Admin) ---
-    const handleImportStudents = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // --- CSV Import Students (New Class-Wise Logic) ---
+    const handleClassWiseImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        if (!importClassId) {
+            showToast("Please select a class first", 'error');
+            e.target.value = '';
+            return;
+        }
 
         setIsSaving(true);
         const reader = new FileReader();
@@ -241,14 +250,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
             try {
                 const text = event.target?.result as string;
                 const lines = text.split('\n');
+
                 const lowerHeader = lines[0].toLowerCase();
-                const startIndex = (lowerHeader.includes('name') || lowerHeader.includes('class')) ? 1 : 0;
-                const hasClassCols = lowerHeader.includes('class') || lowerHeader.includes('division') || lowerHeader.includes('section');
+                const startIndex = (lowerHeader.includes('name') || lowerHeader.includes('admission')) ? 1 : 0;
+
+                const targetClass = state.classes.find((c: any) => c.id === importClassId);
+                if (!targetClass) {
+                    showToast("Selected class not found", 'error');
+                    setIsSaving(false);
+                    return;
+                }
 
                 let successCount = 0;
                 let errorCount = 0;
 
-                showToast(`Importing ${lines.length - startIndex} students...`, 'success');
+                showToast(`Importing students to Class ${targetClass.name}...`, 'success');
 
                 for (let i = startIndex; i < lines.length; i++) {
                     const line = lines[i].trim();
@@ -257,38 +273,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                     const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
                     if (cols.length < 2) continue;
 
+                    const hasClassCols = lowerHeader.includes('class') || lowerHeader.includes('division') || lowerHeader.includes('section');
                     const offset = hasClassCols ? 2 : 0;
-                    const gradeLevel = hasClassCols ? cols[0] : '';
-                    const sectionName = hasClassCols ? cols[1].toUpperCase() : '';
 
-                    // Find correct class
-                    const targetClass = state.classes.find((c: any) =>
-                        c.gradeLevel === gradeLevel && c.section === sectionName
-                    );
-
+                    const name = cols[offset + 0];
                     const admissionNo = cols[offset + 1];
+                    const gender = cols[offset + 2];
+                    const category = cols[offset + 3];
+                    const caste = cols[offset + 4];
                     const mobile = cols[offset + 5] || admissionNo;
+                    const email = cols[offset + 6];
+                    const transport = cols[offset + 7];
+                    const dob = cols[offset + 8];
+                    const address = cols[offset + 9];
+
+                    if (!name || !admissionNo) continue;
 
                     const studentData = {
-                        name: cols[offset + 0],
+                        name,
                         username: admissionNo,
-                        admissionNo: admissionNo,
+                        admissionNo,
                         mobile: mobile,
                         password: mobile, // default password as mobile
-                        gender: (cols[offset + 2] === 'Female' ? 'Female' : 'Male') as any,
-                        category: (cols[offset + 3] || 'General') as any,
-                        caste: cols[offset + 4] || '',
-                        email: cols[offset + 6] || '',
-                        transportMode: cols[offset + 7] as any || '',
-                        dob: cols[offset + 8] || '',
-                        address: cols[offset + 9] || '',
+                        gender: (gender === 'Male' || gender === 'Female') ? gender : 'Male',
+                        category: (['General', 'OBC', 'OEC', 'SC', 'ST'].includes(category)) ? category : 'General',
+                        caste: caste || undefined,
+                        email: email || undefined,
+                        transportMode: transport as any || undefined,
+                        dob: dob || undefined,
+                        address: address || undefined,
                         role: UserRole.STUDENT,
-                        classId: targetClass ? targetClass.id : undefined
+                        classId: targetClass.id
                     };
-
-                    if (!studentData.classId && hasClassCols) {
-                        console.warn(`Class ${gradeLevel}-${sectionName} not found for student ${studentData.name}. Skipping class assignment.`);
-                    }
 
                     try {
                         const response = await userAPI.create(studentData);
@@ -306,6 +322,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
 
                 if (successCount > 0) {
                     showToast(`Successfully imported ${successCount} students.${errorCount > 0 ? ` (${errorCount} failed)` : ''}`, 'success');
+                    setShowImportModal(false);
+                    setImportClassId('');
                 } else if (errorCount > 0) {
                     showToast(`Failed to import students. Check console for details.`, 'error');
                 }
@@ -313,10 +331,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                 showToast('Failed to import CSV.', 'error');
             } finally {
                 setIsSaving(false);
+                e.target.value = '';
             }
         };
         reader.readAsText(file);
-        e.target.value = '';
     };
 
     const handleImportTeachers = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -396,6 +414,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
         const classId = formData.get('classId') as string;
         const gender = formData.get('gender') as any;
         const mobile = formData.get('mobile') as string;
+        const category = formData.get('category') as any;
+        const caste = formData.get('caste') as string;
 
         setIsSaving(true);
         try {
@@ -406,6 +426,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                 classId,
                 gender,
                 mobile,
+                category,
+                caste,
                 role: UserRole.STUDENT,
                 password: mobile || admissionNo // Default password
             };
@@ -453,6 +475,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
         }
         if (!username || username.trim() === '') {
             alert('❌ Username is required!');
+            return;
+        }
+
+        if (username.length < 2) {
+            alert('❌ Username must be at least 2 characters long!');
             return;
         }
 
@@ -620,10 +647,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                 gradeLevel,
                 section: section.toUpperCase(),
                 classTeacherId: classTeacherId || undefined,
-                subjects: Object.keys(selectedSubjects).map(subjectId => ({
-                    subjectId,
-                    teacherId: selectedSubjects[subjectId]
-                }))
+                subjects: Object.keys(selectedSubjects)
+                    .filter(id => id && id.trim() !== '') // Ensure valid subject ID
+                    .map(subjectId => ({
+                        subjectId,
+                        teacherId: selectedSubjects[subjectId]
+                    }))
             };
 
             if (editingItem) {
@@ -656,6 +685,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                 alert(`❌ Error: ${errorMsg}`);
             }
             showToast(errorMsg, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleResetGrades = async () => {
+        if (!window.confirm("⚠️ Are you sure? This will delete all existing grade schemes and restore the standard defaults (Std 5-8 & 9-10).")) return;
+
+        setIsSaving(true);
+        try {
+            // Delete all existing schemes
+            await Promise.all(state.gradeSchemes.map((s: any) => gradeAPI.delete(s.id)));
+
+            const defaultSchemes = [
+                {
+                    name: 'High School (9-10)',
+                    applicableClasses: ['9', '10'],
+                    boundaries: [
+                        { grade: 'A+', minPercent: 90 },
+                        { grade: 'A', minPercent: 80 },
+                        { grade: 'B+', minPercent: 70 },
+                        { grade: 'B', minPercent: 60 },
+                        { grade: 'C+', minPercent: 50 },
+                        { grade: 'C', minPercent: 40 },
+                        { grade: 'D+', minPercent: 30 },
+                        { grade: 'D', minPercent: 20 },
+                        { grade: 'E', minPercent: 0 }
+                    ]
+                },
+                {
+                    name: 'Upper Primary (5-8)',
+                    applicableClasses: ['5', '6', '7', '8'],
+                    boundaries: [
+                        { grade: 'A', minPercent: 80 },
+                        { grade: 'B', minPercent: 60 },
+                        { grade: 'C', minPercent: 40 },
+                        { grade: 'D', minPercent: 30 },
+                        { grade: 'E', minPercent: 0 }
+                    ]
+                }
+            ];
+
+            const createdSchemes = [];
+            for (const s of defaultSchemes) {
+                const res = await gradeAPI.create(s);
+                createdSchemes.push(res.data);
+            }
+
+            setState((prev: any) => ({
+                ...prev,
+                gradeSchemes: createdSchemes
+            }));
+
+            showToast("✅ Grade schemes reset to defaults successfully!", "success");
+        } catch (error) {
+            console.error("Failed to reset grades", error);
+            showToast("Failed to reset grades", "error");
         } finally {
             setIsSaving(false);
         }
@@ -789,9 +875,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                     const mapping: any = {};
                     subjects.forEach((s: any) => {
                         // Handle populated or unpopulated IDs
-                        const subjectId = getId(s.subjectId);
-                        const teacherId = getId(s.teacherId);
-                        mapping[subjectId] = teacherId || '';
+                        // Ensure we ignore bad data where subjectId might be null (e.g. deleted subject)
+                        if (s.subjectId) {
+                            const subjectId = getId(s.subjectId);
+                            if (subjectId) {
+                                const teacherId = getId(s.teacherId);
+                                mapping[subjectId] = teacherId || '';
+                            }
+                        }
                     });
                     setSelectedSubjects(mapping);
                 } catch (error) {
@@ -999,6 +1090,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                                             <input name="mobile" defaultValue={editingItem?.mobile} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-500 font-bold" />
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
+                                            <select name="category" defaultValue={editingItem?.category || 'General'} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-500 font-bold">
+                                                <option value="General">General</option>
+                                                <option value="OBC">OBC</option>
+                                                <option value="OEC">OEC</option>
+                                                <option value="SC">SC</option>
+                                                <option value="ST">ST</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Caste</label>
+                                            <input name="caste" defaultValue={editingItem?.caste} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-blue-500 font-bold" />
+                                        </div>
+                                    </div>
                                 </>
                             )}
 
@@ -1124,6 +1231,74 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
         );
     };
 
+    const renderImportModal = () => {
+        if (!showImportModal) return null;
+        return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up">
+                    <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                        <h3 className="text-xl font-black text-slate-800">Import Students</h3>
+                        <button onClick={() => setShowImportModal(false)} className="p-2 text-slate-400 hover:text-slate-600 bg-white rounded-xl">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="space-y-4">
+                            <div className="p-4 bg-blue-50 rounded-2xl flex items-start gap-3">
+                                <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={20} />
+                                <div className="text-xs text-blue-800 font-medium">
+                                    <p className="font-bold mb-1">Instructions:</p>
+                                    <p>Select the target class below. The CSV should contain at least <strong>Name</strong> and <strong>Admission No</strong>.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Class</label>
+                                <select
+                                    value={importClassId}
+                                    onChange={(e) => setImportClassId(e.target.value)}
+                                    className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none focus:border-blue-500 font-bold"
+                                >
+                                    <option value="">Select a Class...</option>
+                                    {state.classes.map((c: any) => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <input
+                                type="file"
+                                id="classImportInput"
+                                accept=".csv"
+                                onChange={handleClassWiseImport}
+                                className="hidden"
+                            />
+                            <button
+                                disabled={!importClassId || isSaving}
+                                onClick={() => document.getElementById('classImportInput')?.click()}
+                                className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200/50 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                            >
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 size={20} className="mr-2 animate-spin" />
+                                        Importing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload size={20} className="mr-2" />
+                                        Select CSV File & Import
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-8 pb-12">
             {/* Page Header */}
@@ -1133,25 +1308,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                     <p className="text-slate-400 font-bold">Manage {activeTab === 'stats' ? 'school metrics' : activeTab === 'data' ? 'backup and restore' : activeTab}</p>
                 </div>
                 {activeTab !== 'stats' && activeTab !== 'school' && activeTab !== 'data' && (
-                    <button
-                        onClick={() => {
-                            setEditingItem(null);
-                            if (activeTab === 'grades') {
-                                setEditingGradeScheme({
-                                    id: '',
-                                    name: '',
-                                    applicableClasses: [],
-                                    boundaries: [{ grade: 'A+', minPercent: 90 }, { grade: 'A', minPercent: 80 }]
-                                });
-                            } else {
-                                setEditingGradeScheme(null);
-                            }
-                            setShowModal(true);
-                        }}
-                        className="px-6 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center"
-                    >
-                        <Plus size={18} className="mr-2" /> Add {activeTab === 'grades' ? 'Scheme' : activeTab.slice(0, -1)}
-                    </button>
+                    <div className="flex gap-3">
+                        {activeTab === 'grades' && (
+                            <button
+                                onClick={handleResetGrades}
+                                disabled={isSaving}
+                                className="px-6 py-3 bg-white text-red-600 font-black rounded-2xl border-2 border-red-50 hover:bg-red-50 transition-all flex items-center"
+                            >
+                                <RefreshCw size={18} className={`mr-2 ${isSaving ? 'animate-spin' : ''}`} />
+                                Reset Defaults
+                            </button>
+                        )}
+                        <button
+                            onClick={() => {
+                                setEditingItem(null);
+                                if (activeTab === 'grades') {
+                                    setEditingGradeScheme({
+                                        id: '',
+                                        name: '',
+                                        applicableClasses: [],
+                                        boundaries: [{ grade: 'A+', minPercent: 90 }, { grade: 'A', minPercent: 80 }]
+                                    });
+                                } else {
+                                    setEditingGradeScheme(null);
+                                }
+                                setShowModal(true);
+                            }}
+                            className="px-6 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center"
+                        >
+                            <Plus size={18} className="mr-2" /> Add {activeTab === 'grades' ? 'Scheme' : activeTab.slice(0, -1)}
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -1457,8 +1644,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
                             />
                         </div>
                         <div className="flex gap-2">
-                            <input type="file" id="studentImportInput" onChange={handleImportStudents} accept=".csv" className="hidden" />
-                            <button onClick={() => document.getElementById('studentImportInput')?.click()} className="p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100" title="Import Students"><Upload size={18} /></button>
+                            <button onClick={() => { setShowImportModal(true); setImportClassId(''); }} className="p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100" title="Import Students"><Upload size={18} /></button>
                             <button onClick={handleExportStudents} className="p-3 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100" title="Export Students"><Download size={18} /></button>
                         </div>
                     </div>
@@ -1771,6 +1957,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ state, setState }) => {
 
             {/* Render Modal */}
             {renderModal()}
+            {renderImportModal()}
 
             {/* Toast */}
             {toast && (

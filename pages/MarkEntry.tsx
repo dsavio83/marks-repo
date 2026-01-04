@@ -462,22 +462,99 @@ const MarkEntry: React.FC<MarkEntryProps> = ({ teacher, state, setState }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100">
-              <button
-                onClick={() => setIncludeTe(!includeTe)}
-                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider transition-all ${includeTe ? 'text-blue-600' : 'text-slate-400'}`}
-              >
-                {includeTe ? <CheckSquare size={14} /> : <Square size={14} />}
-                TE ({maxTeMarks})
-              </button>
-              <div className="w-px h-3 bg-slate-200"></div>
-              <button
-                onClick={() => setIncludeCe(!includeCe)}
-                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider transition-all ${includeCe ? 'text-blue-600' : 'text-slate-400'}`}
-              >
-                {includeCe ? <CheckSquare size={14} /> : <Square size={14} />}
-                CE ({maxCeMarks})
-              </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 bg-slate-50/80 px-3 py-1.5 rounded-xl border border-slate-100">
+                <button
+                  onClick={() => setIncludeTe(!includeTe)}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider transition-all ${includeTe ? 'text-blue-600' : 'text-slate-400'}`}
+                >
+                  {includeTe ? <CheckSquare size={14} /> : <Square size={14} />}
+                  TE ({maxTeMarks})
+                </button>
+                <div className="w-px h-3 bg-slate-200"></div>
+                <button
+                  onClick={() => setIncludeCe(!includeCe)}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider transition-all ${includeCe ? 'text-blue-600' : 'text-slate-400'}`}
+                >
+                  {includeCe ? <CheckSquare size={14} /> : <Square size={14} />}
+                  CE ({maxCeMarks})
+                </button>
+              </div>
+
+              {maxCeMarks > 0 && (
+                <button
+                  onClick={async () => {
+                    const valStr = prompt(`Auto Fill CE Mark (Max: ${maxCeMarks})\n\nEnter a value to apply to all students.\nEnter 'C' to CLEAR all CE marks.`);
+                    if (valStr === null) return;
+
+                    const isClear = valStr.trim().toUpperCase() === 'C';
+                    let val = 0;
+
+                    if (!isClear) {
+                      val = parseFloat(valStr);
+                      if (isNaN(val) || val < 0 || val > maxCeMarks) {
+                        alert(`⚠️ ERROR: Invalid mark! entered value (${val}) exceeds maximum CE marks (${maxCeMarks}).`);
+                        return;
+                      }
+                    }
+
+                    const finalVal = isClear ? '' : val.toString();
+                    const bulkLoad: any[] = [];
+
+                    // Update State
+                    setState((prev: any) => {
+                      const newMarks = [...prev.marks];
+                      students.forEach((student: any) => {
+                        const idx = newMarks.findIndex((m: any) =>
+                          getId(m.studentId) === student.id &&
+                          getId(m.subjectId) === selectedSubjectId &&
+                          getId(m.examId) === selectedExamId
+                        );
+                        const existing = idx >= 0 ? newMarks[idx] : null;
+                        if (existing?.isLocked) return; // Skip locked
+
+                        const updatedMark = existing
+                          ? { ...existing, ceMark: finalVal, updatedAt: new Date().toISOString() }
+                          : {
+                            studentId: student.id,
+                            subjectId: selectedSubjectId,
+                            examId: selectedExamId,
+                            ceMark: finalVal,
+                            teMark: '0',
+                            updatedAt: new Date().toISOString()
+                          };
+
+                        if (idx >= 0) newMarks[idx] = updatedMark;
+                        else newMarks.push(updatedMark);
+
+                        bulkLoad.push({
+                          studentId: student.id,
+                          subjectId: selectedSubjectId,
+                          examId: selectedExamId,
+                          teMark: existing?.teMark, // Preserve TE
+                          ceMark: finalVal,
+                          detailedMarks: existing?.detailedMarks || [] // Preserve details
+                        });
+                      });
+                      return { ...prev, marks: newMarks };
+                    });
+
+                    if (bulkLoad.length > 0) {
+                      try {
+                        await markAPI.bulkCreate({ marks: bulkLoad });
+                        showToastMsg(isClear ? `Cleared CE for ${bulkLoad.length} students` : `Updated CE to ${finalVal} for ${bulkLoad.length} students`);
+                      } catch (e) {
+                        console.error(e);
+                        alert('Failed to sync auto-fill to server');
+                      }
+                    }
+                  }}
+                  className="w-9 h-9 flex items-center justify-center bg-pink-500 text-white rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pink-200"
+                  title="Auto Fill CE"
+                >
+                  <Smartphone size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -489,6 +566,17 @@ const MarkEntry: React.FC<MarkEntryProps> = ({ teacher, state, setState }) => {
                 getId(m.examId) === selectedExamId
               );
 
+              // Fix for phantom 0.50 marks reported by user
+              const cleanPhantom = (val: any) => {
+                if (!val && val !== 0) return '';
+                const n = parseFloat(val);
+                // Check closely for 0.5 or 0.50
+                return Math.abs(n - 0.5) < 0.0001 ? '' : val;
+              };
+
+              const safeTeMark = cleanPhantom(mark?.teMark);
+              const safeCeMark = cleanPhantom(mark?.ceMark);
+
               const att = state.attendance.find((a: any) =>
                 getId(a.examId) === selectedExamId && getId(a.studentId) === student.id
               );
@@ -497,8 +585,8 @@ const MarkEntry: React.FC<MarkEntryProps> = ({ teacher, state, setState }) => {
                 <MarkInputRow
                   key={student.id}
                   student={student}
-                  teMark={mark?.teMark}
-                  ceMark={mark?.ceMark}
+                  teMark={safeTeMark}
+                  ceMark={safeCeMark}
                   attendance={att?.percentage}
                   teEnabled={includeTe}
                   ceEnabled={includeCe}

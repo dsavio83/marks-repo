@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
+import Swal from 'sweetalert2';
 import {
     Save, AlertCircle, CheckCircle2,
     ChevronRight, Loader2, BookOpen,
-    Lock, Smartphone, X, UserX
+    Lock, Unlock, Smartphone, X, UserX
 } from 'lucide-react';
 import { markAPI } from '../services/api';
 
@@ -63,6 +64,7 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
 
     const activeConfig = selectedExam?.subjectConfigs.find((c: any) => getId(c.subjectId) === selectedSubjectId);
     const sections = activeConfig?.markSections || [];
+    const displaySections = sections.filter((s: any) => s.name.toUpperCase() !== 'CE');
 
     // Filter students to show
     const filteredStudents = user.role === UserRole.STUDENT
@@ -142,13 +144,15 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
         setAbsentMap(prev => ({ ...prev, [studentId]: !prev[studentId] }));
     };
 
-    const handleBulkSave = async () => {
+    const handleBulkSave = async (shouldLock: boolean = true) => {
         if (!selectedExamId || !selectedSubjectId || !activeConfig) return;
 
         setIsSaving(true);
         try {
             const bulkPayloads: any[] = [];
-            const sections = activeConfig.markSections || [];
+            const allSections = activeConfig.markSections || [];
+            // Filter out CE for validation purposes
+            const teSections = allSections.filter((s: any) => s.name.toUpperCase() !== 'CE');
 
             for (const student of filteredStudents) {
                 const isAbsent = absentMap[student.id];
@@ -165,15 +169,8 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                 }
 
                 // Check if this student should be processed
-                // Process if: 
-                // 1. Is marked absent
-                // 2. Has changed marks (entryData exists)
-                // 3. Has an existing mark record (Need to update lock status or ensure consistency)
                 const hasEntry = !!entryData[student.id];
 
-                // If the student is untouched (no entry, not absent, no existing mark), SKIP them.
-                // This prevents "locking" students with 0s if we haven't graded them yet.
-                // UNLESS user explicitly wants to "fill 0" but usually "untouched" implies "skip".
                 if (!isAbsent && !hasEntry && !existingMark) {
                     continue;
                 }
@@ -188,20 +185,14 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         detailedMarks: [], // Clear detailed marks if absent
                         teMark: 'A', // Mark as Absent
                         ceMark: 'A',
-                        isLocked: true // Auto-lock on save
+                        isLocked: shouldLock // Lock based on request
                     };
                 } else {
                     const studentMarks = entryData[student.id] || {};
 
                     // Iterate over ALL sections to ensure completeness. Default to 0 if missing.
-                    const detailedMarks = sections.map((section: any) => {
+                    const detailedMarks = allSections.map((section: any) => {
                         const val = studentMarks[section.id];
-                        // If value is undefined or null, treat as 0
-                        // NOTE: If existingMark exists but entryData doesn't (untouched row), 
-                        // we should use existing tokens? 
-                        // But entryData is initialized from existing marks in useEffect!
-                        // So entryData WILL exist if existingMark exists.
-                        // So if entryData is empty here, it means truly empty inputs.
                         const markVal = (val === undefined || val === null) ? 0 : val;
                         return {
                             sectionId: section.id,
@@ -209,12 +200,65 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         };
                     });
 
-                    const totalObtained = detailedMarks.reduce((acc: number, curr: any) => acc + (curr.marks as number), 0);
+                    // Calculate TE Total for Validation (Exclude CE)
+                    const teMarksOnly = detailedMarks.filter((dm: any) => {
+                        const sec = allSections.find((s: any) => s.id === dm.sectionId);
+                        return sec && sec.name.toUpperCase() !== 'CE';
+                    });
+
+                    const totalObtained = teMarksOnly.reduce((acc: number, curr: any) => acc + (curr.marks as number), 0);
                     const roundedTotal = Math.ceil(totalObtained);
 
                     // Validation: Must not exceed activeConfig.maxTe
                     if (roundedTotal > activeConfig.maxTe) {
-                        showToastMsg(`Error for ${student.name}: Total marks (${roundedTotal}) cannot exceed Max TE (${activeConfig.maxTe})`, 'error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid TE Marks',
+                            text: `TE Mark exceeds maximum limit.\n(${student.name})`,
+                            confirmButtonColor: '#d33'
+                        });
+                        setIsSaving(false);
+                        return;
+                    }
+
+                    // STRICT VALIDATION: Compare with Authoritative Mark (MarkEntry.tsx)
+                    // The mark from "Enter marks for exams and subjects" is FINAL.
+                    const existingTeRaw = existingMark?.teMark;
+                    const existingTeVal = parseFloat(existingTeRaw);
+
+                    // If existing mark is Absent ('A'), we should not be entering marks here unless we unlock/change there
+                    if (existingTeRaw === 'A') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Student is Absent',
+                            text: `Student is marked Absent in Main Exam Entry. Cannot enter split marks.\n(${student.name})`,
+                            confirmButtonColor: '#d33'
+                        });
+                        setIsSaving(false);
+                        return;
+                    }
+
+                    // If Main Mark exists, Total MUST match exactly
+                    if (!isNaN(existingTeVal)) {
+                        if (Math.abs(roundedTotal - existingTeVal) > 0.01) { // Float safety
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Total Mismatch',
+                                text: `TE மதிப்பெண் அதிகமாக உள்ளது, அல்லது குறைவாக உள்ளது சரியான மதிப்பெண் பிரிவுகளை உட்படுத்தவும்.\n(${student.name} - Given: ${existingTeVal}, Calc: ${roundedTotal})`,
+                                confirmButtonColor: '#d33'
+                            });
+                            setIsSaving(false);
+                            return;
+                        }
+                    } else {
+                        // If NO Main Mark exists, we BLOCK because Main Mark is the Authority.
+                        // "Enter marks for exams and subjects ... mark only correct."
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Main Mark Missing',
+                            text: `Main Exam Mark not found for ${student.name}. Please enter the Total Mark in "Enter marks for exams and subjects" page first.`,
+                            confirmButtonColor: '#f59e0b'
+                        });
                         setIsSaving(false);
                         return;
                     }
@@ -224,8 +268,8 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         subjectId: selectedSubjectId,
                         examId: selectedExamId,
                         detailedMarks,
-                        teMark: roundedTotal.toString(),
-                        isLocked: true // Auto-lock on save
+                        teMark: existingTeRaw, // V CRITICAL: Do NOT replace the authoritative total. Use exact existing value.
+                        isLocked: shouldLock // Lock based on request
                     };
                 }
 
@@ -250,7 +294,7 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                     });
                 }
 
-                showToastMsg('Marks saved and locked successfully!');
+                showToastMsg(shouldLock ? 'Marks saved and locked successfully!' : 'Marks saved and unlocked successfully!');
             } else {
                 showToastMsg('No changes to save.', 'error');
             }
@@ -300,12 +344,27 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                 return;
             }
 
+            // STRICT VALIDATION FOR LOCKING AS WELL
+            const existingTeRaw = existingMark?.teMark;
+            const existingTeVal = parseFloat(existingTeRaw);
+
+            if (!isNaN(existingTeVal)) {
+                if (Math.abs(roundedTotal - existingTeVal) > 0.01) {
+                    showToastMsg(`Cannot lock: Section total (${roundedTotal}) does not match Main Mark (${existingTeVal})`, 'error');
+                    return;
+                }
+            } else {
+                // Block if no main mark
+                showToastMsg(`Cannot lock: Main Exam Mark not found`, 'error');
+                return;
+            }
+
             payload = {
                 studentId: student.id,
                 subjectId: selectedSubjectId,
                 examId: selectedExamId,
                 detailedMarks,
-                teMark: roundedTotal.toString(),
+                teMark: existingTeRaw,  // Preserve Authoritative Mark
                 isLocked: newLockState
             };
         }
@@ -346,6 +405,16 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
 
     return (
         <div className="space-y-4 max-w-5xl mx-auto pb-12">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl rotate-3">
+                    <BookOpen size={24} />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Section Marks Management</h1>
+                    <p className="text-slate-500 font-bold text-xs">Manage detailed split marks for students</p>
+                </div>
+            </div>
+
             <div className="native-card !p-4 bg-white/80 backdrop-blur-md">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {user.role !== UserRole.STUDENT && (
@@ -402,28 +471,98 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={handleBulkSave}
-                            disabled={isSaving}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                        >
-                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                            <span className="text-xs uppercase tracking-widest">
-                                {user.role === UserRole.STUDENT ? 'Submit & Lock' : 'Process Bulk Save'}
-                            </span>
-                        </button>
+                        <div className="flex gap-3">
+                            {activeConfig?.markSections?.some((s: any) => s.name.toUpperCase() === 'CE') && user.role !== UserRole.STUDENT && (
+                                <button
+                                    onClick={() => {
+                                        const ceSection = activeConfig.markSections.find((s: any) => s.name.toUpperCase() === 'CE');
+                                        if (!ceSection) return;
+
+                                        const valStr = prompt(`Enter CE mark to apply for all students (Max: ${ceSection.maxMarks}):`);
+                                        if (valStr === null) return;
+
+                                        const val = parseFloat(valStr);
+                                        if (isNaN(val) || val < 0 || val > ceSection.maxMarks) {
+                                            showToastMsg(`Invalid mark. Please enter a number between 0 and ${ceSection.maxMarks}`, 'error');
+                                            return;
+                                        }
+
+                                        setEntryData(prev => {
+                                            const newData = { ...prev };
+                                            filteredStudents.forEach((student: any) => {
+                                                const existingMark = state.marks.find((m: any) =>
+                                                    getId(m.studentId) === student.id &&
+                                                    getId(m.subjectId) === selectedSubjectId &&
+                                                    getId(m.examId) === selectedExamId
+                                                );
+
+                                                if (existingMark?.isLocked || absentMap[student.id]) return;
+
+                                                if (!newData[student.id]) newData[student.id] = {};
+                                                newData[student.id] = {
+                                                    ...newData[student.id],
+                                                    [ceSection.id]: val
+                                                };
+                                            });
+                                            return newData;
+                                        });
+                                        showToastMsg(`Applied CE mark ${val} to all eligible students`, 'success');
+                                    }}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    <Smartphone size={16} />
+                                    <span className="text-xs uppercase tracking-widest">Auto Fill CE</span>
+                                </button>
+                            )}
+
+                            {user.role !== UserRole.STUDENT && (
+                                <button
+                                    onClick={() => handleBulkSave(false)}
+                                    disabled={isSaving}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-amber-100 text-amber-700 rounded-xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Unlock size={16} />}
+                                    <span className="text-xs uppercase tracking-widest">Unlock All</span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => handleBulkSave(true)}
+                                disabled={isSaving}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-black shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                <span className="text-xs uppercase tracking-widest">
+                                    {user.role === UserRole.STUDENT ? 'Submit & Lock' : 'Save All'}
+                                </span>
+                            </button>
+                        </div>
                     </div>
+
+
 
                     <div className="space-y-3">
                         {filteredStudents.map((student: any) => {
                             const studentData = entryData[student.id] || {};
-                            const draftTotal = Object.values(studentData).reduce((a: number, b: any) => a + (b as number), 0);
-                            const isLocked = state.marks.find((m: any) => getId(m.studentId) === student.id && getId(m.subjectId) === selectedSubjectId && getId(m.examId) === selectedExamId)?.isLocked;
-                            const totalExceeds = Math.ceil(draftTotal as number) > (activeConfig?.maxTe || 0);
+                            // Use displaySections (TE) for draftTotal
+                            const draftTotal = displaySections.reduce((a: number, b: any) => a + (studentData[b.id] || 0), 0);
+
+                            const existingMark = state.marks.find((m: any) => getId(m.studentId) === student.id && getId(m.subjectId) === selectedSubjectId && getId(m.examId) === selectedExamId);
+                            const isLocked = existingMark?.isLocked;
+
+                            // Check Authoritative Total
+                            const targetTotalStr = existingMark?.teMark;
+                            const targetTotal = parseFloat(targetTotalStr);
+                            const roundedDraft = Math.ceil(draftTotal as number);
+
+                            const totalExceeds = roundedDraft > (activeConfig?.maxTe || 0);
+                            const isMismatch = !isNaN(targetTotal) && Math.abs(roundedDraft - targetTotal) > 0.01;
+
                             const isAbsent = absentMap[student.id];
+                            const hasError = totalExceeds || isMismatch;
 
                             return (
-                                <div className={`native-card !p-4 transition-all ${isLocked ? 'bg-amber-50/30 border-amber-200' : ''} ${totalExceeds ? 'bg-red-50/50 border-red-100' : ''}`}>
+                                <div className={`native-card !p-4 transition-all ${isLocked ? 'bg-amber-50/30 border-amber-200' : ''} ${hasError ? 'bg-red-50/50 border-red-100' : ''}`}>
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 min-w-0 md:w-1/4">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isAbsent ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -453,7 +592,7 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
 
                                             <div className="flex-1 overflow-x-auto custom-scrollbar -mx-2 px-2 flex justify-center">
                                                 <div className="flex gap-2 min-w-max">
-                                                    {sections.map((s: any) => (
+                                                    {displaySections.map((s: any) => (
                                                         <div key={s.id} className="flex flex-col items-center">
                                                             <span className="text-[7px] font-black text-slate-400 uppercase mb-1 tracking-tighter truncate w-14 text-center">{s.name}</span>
                                                             <input
@@ -472,9 +611,9 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
 
                                             <div className="flex items-center justify-end sm:flex-col sm:items-end gap-2 shrink-0">
                                                 <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest sm:hidden">Total</p>
-                                                <div className={`px-3 py-1.5 rounded-lg text-xs font-black ${isAbsent ? 'bg-slate-100 text-slate-400' : (totalExceeds ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'bg-blue-50 text-blue-700 border border-blue-100')}`}>
+                                                <div className={`px-3 py-1.5 rounded-lg text-xs font-black ${isAbsent ? 'bg-slate-100 text-slate-400' : (hasError ? 'bg-red-600 text-white shadow-lg shadow-red-200' : 'bg-blue-50 text-blue-700 border border-blue-100')}`}>
                                                     {isAbsent ? 'Absent' : draftTotal}
-                                                    {!isAbsent && <span className="opacity-50 text-[10px]">/ {activeConfig?.maxTe}</span>}
+                                                    {!isAbsent && <span className={`opacity-70 text-[10px] ml-1 ${hasError ? 'text-red-100' : 'text-blue-400'}`}>/ {!isNaN(targetTotal) ? targetTotal : activeConfig?.maxTe}</span>}
                                                 </div>
                                             </div>
 
@@ -504,28 +643,33 @@ const SectionMarkEntry: React.FC<SectionMarkEntryProps> = ({ user, state, setSta
                         })}
                     </div>
                 </div>
-            )}
+            )
+            }
 
-            {!selectedSubjectId && (
-                <div className="py-20 text-center animate-fade-scale">
-                    <div className="w-16 h-16 bg-blue-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-blue-600 border border-blue-100">
-                        <BookOpen size={28} />
+            {
+                !selectedSubjectId && (
+                    <div className="py-20 text-center animate-fade-scale">
+                        <div className="w-16 h-16 bg-blue-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-blue-600 border border-blue-100">
+                            <BookOpen size={28} />
+                        </div>
+                        <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">Awaiting Configuration</p>
+                        <p className="text-slate-500 font-bold text-sm mt-1">Select class, exam and subject above</p>
                     </div>
-                    <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">Awaiting Configuration</p>
-                    <p className="text-slate-500 font-bold text-sm mt-1">Select class, exam and subject above</p>
-                </div>
-            )}
+                )
+            }
 
-            {toast && (
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-bottom-10 duration-300">
-                    <div className={`px-6 py-3 rounded-2xl shadow-premium flex items-center space-x-3 border border-white/10 backdrop-blur-xl text-white ${toast.type === 'success' ? 'bg-slate-900/90' : 'bg-red-600/90'}`}>
-                        {toast.type === 'success' ? <CheckCircle2 size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-white" />}
-                        <span className="font-black uppercase tracking-widest text-[10px]">{toast.msg}</span>
-                        <button onClick={() => setToast(null)} className="ml-2 p-1 hover:bg-white/10 rounded-full"><X size={12} /></button>
+            {
+                toast && (
+                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-bottom-10 duration-300">
+                        <div className={`px-6 py-3 rounded-2xl shadow-premium flex items-center space-x-3 border border-white/10 backdrop-blur-xl text-white ${toast.type === 'success' ? 'bg-slate-900/90' : 'bg-red-600/90'}`}>
+                            {toast.type === 'success' ? <CheckCircle2 size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-white" />}
+                            <span className="font-black uppercase tracking-widest text-[10px]">{toast.msg}</span>
+                            <button onClick={() => setToast(null)} className="ml-2 p-1 hover:bg-white/10 rounded-full"><X size={12} /></button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

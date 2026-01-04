@@ -96,6 +96,37 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ student, state, set
 
     // Strict Grade Logic
     const getGrade = (percent: number) => {
+        // Hardcoded Logic for Class 5-8 and 9-10
+        let level = 0;
+        if (myClass && myClass.gradeLevel) {
+            const match = String(myClass.gradeLevel).match(/\d+/);
+            if (match) {
+                level = parseInt(match[0], 10);
+            }
+        }
+
+        // Scheme for 9 and 10
+        if (level === 9 || level === 10) {
+            if (percent >= 90) return 'A+';
+            if (percent >= 80) return 'A';
+            if (percent >= 70) return 'B+';
+            if (percent >= 60) return 'B';
+            if (percent >= 50) return 'C+';
+            if (percent >= 40) return 'C';
+            if (percent >= 30) return 'D+';
+            if (percent >= 20) return 'D';
+            return 'E';
+        }
+
+        // Scheme for 5 to 8
+        if (level >= 5 && level <= 8) {
+            if (percent >= 80) return 'A';
+            if (percent >= 60) return 'B';
+            if (percent >= 40) return 'C';
+            if (percent >= 30) return 'D';
+            return 'E';
+        }
+
         if (!applicableScheme) return '-';
         // Ensure boundaries are sorted descending
         const sorted = [...applicableScheme.boundaries].sort((a: any, b: any) => b.minPercent - a.minPercent);

@@ -596,6 +596,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacher, state, set
                                     <select name="category" defaultValue={editingStudent?.category} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold">
                                         <option>General</option>
                                         <option>OBC</option>
+                                        <option> OEC</option>
                                         <option>SC</option>
                                         <option>ST</option>
                                     </select>
